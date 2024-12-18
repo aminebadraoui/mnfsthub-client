@@ -1,81 +1,81 @@
 import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import {
-    LayoutDashboard,
-    Users,
-    Settings,
-    LogOut
-} from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { LayoutGrid, Users, Settings, LogOut } from 'lucide-react';
+import { logout } from '../services/authService';
 
-const DashboardLayout = () => {
+const DashboardLayout = ({ children }) => {
     const navigate = useNavigate();
-
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        navigate('/signin');
-    };
+    const location = useLocation();
 
     const menuItems = [
         {
-            icon: <LayoutDashboard className="w-6 h-6" />,
-            label: 'Dashboard',
+            name: 'Dashboard',
+            icon: <LayoutGrid className="w-5 h-5" />,
             path: '/'
         },
         {
-            icon: <Users className="w-6 h-6" />,
-            label: 'Outreach Portal',
+            name: 'Outreach Portal',
+            icon: <Users className="w-5 h-5" />,
             path: '/outreach-portal'
         },
         {
-            icon: <Settings className="w-6 h-6" />,
-            label: 'Settings',
+            name: 'Settings',
+            icon: <Settings className="w-5 h-5" />,
             path: '/settings'
         }
     ];
 
+    const handleLogout = () => {
+        logout();
+        navigate('/signin');
+    };
+
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-gray-50">
             {/* Sidebar */}
-            <div className="w-64 bg-white shadow-sm">
+            <div className="w-64 bg-white border-r border-gray-200">
                 <div className="flex flex-col h-full">
-                    {/* Logo area */}
-                    <div className="p-4 border-b">
+                    {/* Logo */}
+                    <div className="p-6 border-b border-gray-200">
                         <h1 className="text-xl font-bold">MNFST Hub</h1>
                     </div>
 
-                    {/* Menu items */}
+                    {/* Navigation */}
                     <nav className="flex-1 p-4">
                         <ul className="space-y-1">
-                            {menuItems.map((item, index) => (
-                                <li key={index}>
+                            {menuItems.map((item) => (
+                                <li key={item.name}>
                                     <button
                                         onClick={() => navigate(item.path)}
-                                        className="flex items-center w-full px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100"
+                                        className={`w-full flex items-center px-4 py-2 text-sm rounded-lg ${location.pathname === item.path
+                                            ? 'bg-gray-100 text-gray-900'
+                                            : 'text-gray-600 hover:bg-gray-50'
+                                            }`}
                                     >
                                         {item.icon}
-                                        <span className="ml-3">{item.label}</span>
+                                        <span className="ml-3">{item.name}</span>
                                     </button>
                                 </li>
                             ))}
                         </ul>
                     </nav>
 
-                    {/* Logout button at bottom */}
-                    <div className="p-4 border-t">
+                    {/* Logout Button */}
+                    <div className="p-4 border-t border-gray-200">
                         <button
                             onClick={handleLogout}
-                            className="flex items-center w-full px-4 py-2 text-red-600 rounded-lg hover:bg-red-50"
+                            className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
                         >
-                            <LogOut className="w-6 h-6" />
+                            <LogOut className="w-5 h-5" />
                             <span className="ml-3">Logout</span>
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Main content */}
+            {/* Main Content */}
             <div className="flex-1 overflow-auto">
-                <Outlet />
+                {children}
             </div>
         </div>
     );

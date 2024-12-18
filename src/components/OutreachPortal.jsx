@@ -1,194 +1,314 @@
-import React, { useState } from 'react';
-import {
-    Mail,
-    Phone,
-    Linkedin,
-    Instagram,
-    Facebook,
-    Calendar,
-    Search,
-    ArrowRight,
-    Plus,
-    X,
-    MinusCircle,
-    Target,
-    MessageSquare,
-    BarChart2,
-    PlayCircle,
-    PauseCircle,
-    Settings,
-    MoreVertical,
-    ArrowLeft
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Plus, ListPlus, Activity, Clock, List, UserPlus } from 'lucide-react';
+import ListModal from './ListModal';
+import ListsModal from './ListsModal';
+import CampaignModal from './CampaignModal';
+import {
+    getLists,
+    uploadToN8N,
+    addProspectsToList,
+    getCampaigns,
+    createCampaign,
+    deactivateCampaign,
+    activateCampaign,
+    removeCampaign
+} from '../services/n8nService';
 
-// ... (previous imports and initial states remain the same)
+const JULIE_IMAGE = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80';
+
+const EmptyState = ({ title, description }) => (
+    <div className="bg-white p-8 rounded-lg border border-gray-200 text-center">
+        <div className="mx-auto h-12 w-12 text-gray-400 mb-4">
+            <Activity className="w-full h-full" />
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
+        <p className="text-gray-500">{description}</p>
+    </div>
+);
+
+const LoadingCampaignCard = () => (
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 animate-pulse">
+        <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+        <div className="flex gap-2">
+            <div className="h-6 bg-gray-200 rounded-full w-16"></div>
+            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+            <div className="h-6 bg-gray-200 rounded-full w-24"></div>
+        </div>
+    </div>
+);
+
+const LoadingCampaignsSection = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <LoadingCampaignCard />
+        <LoadingCampaignCard />
+        <LoadingCampaignCard />
+    </div>
+);
 
 const OutreachPortal = () => {
-    // ... (previous states remain the same)
-    const [showCampaignCreator, setShowCampaignCreator] = useState(false);
-    const [isSlideOverMinimized, setIsSlideOverMinimized] = useState(false);
-    const [selectedChannel, setSelectedChannel] = useState('all');
-    const [creationStep, setCreationStep] = useState(1);
-    const [campaignData, setCampaignData] = useState({
-        name: '',
-        intention: '',
-        startDate: '',
-        endDate: '',
-        selectedChannels: [],
-        lists: {},
-        filters: []
-    });
-
-    const [selectedCampaign, setSelectedCampaign] = useState(null);
-    const [showCampaignDetails, setShowCampaignDetails] = useState(false);
-
     const navigate = useNavigate();
+    const [isListModalOpen, setIsListModalOpen] = useState(false);
+    const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
+    const [lists, setLists] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [isListsModalOpen, setIsListsModalOpen] = useState(false);
+    const [isAddProspectsModalOpen, setIsAddProspectsModalOpen] = useState(false);
+    const [selectedList, setSelectedList] = useState(null);
+    const [isMounted, setIsMounted] = useState(true);
+    const [campaigns, setCampaigns] = useState({ active: [], inactive: [] });
 
-    // Sample campaigns data
-    const campaigns = [
-        {
-            id: 1,
-            name: 'Q4 Tech Outreach',
-            status: 'active',
-            startDate: '2024-12-01',
-            endDate: '2024-12-31',
-            progress: 45,
-            channels: ['email', 'linkedin'],
-            metrics: {
-                sent: 450,
-                responses: 123,
-                meetings: 12
-            }
-        },
-        {
-            id: 2,
-            name: 'Healthcare Decision Makers',
-            status: 'paused',
-            startDate: '2024-12-10',
-            endDate: '2025-01-10',
-            progress: 25,
-            channels: ['email', 'phone'],
-            metrics: {
-                sent: 280,
-                responses: 85,
-                meetings: 8
-            }
-        },
-        // Add more sample campaigns...
-    ];
+    useEffect(() => {
+        setIsMounted(true);
+        fetchData();
+        return () => setIsMounted(false);
+    }, []);
 
-    const handleCampaignClick = (campaign) => {
-        navigate(`/outreach-portal/campaign/${campaign.id}`);
+    const fetchData = async () => {
+        try {
+            setIsLoading(true);
+            console.log('Starting data fetch...');
+
+            const listsData = await getLists();
+            console.log('Lists data received:', listsData);
+            setLists(listsData);
+
+            const campaignsData = await getCampaigns();
+            console.log('Campaigns data received:', campaignsData);
+
+            // Process campaigns data - it's directly an array
+            if (Array.isArray(campaignsData)) {
+                // Set campaigns state based on Active property
+                setCampaigns({
+                    active: campaignsData.filter(campaign => campaign.Active === true),
+                    inactive: campaignsData.filter(campaign => campaign.Active === false)
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            setError('Failed to fetch data');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const CampaignsList = () => (
-        <div className="bg-white rounded-lg mb-8">
-            <div className="p-4 border-b flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Active Campaigns</h2>
-                <button
-                    onClick={() => setShowCampaignCreator(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                >
-                    <Plus className="w-4 h-4" />
-                    New Campaign
-                </button>
-            </div>
-            <div className="divide-y">
-                {campaigns.map((campaign) => (
-                    <div
-                        key={campaign.id}
-                        className="p-4 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => handleCampaignClick(campaign)}
-                    >
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                                <h3 className="font-medium">{campaign.name}</h3>
-                                <span className={`px-2 py-1 rounded-full text-xs ${campaign.status === 'active'
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-100 text-gray-700'
-                                    }`}>
-                                    {campaign.status}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <button className="p-2 hover:bg-gray-100 rounded-lg">
-                                    {campaign.status === 'active' ?
-                                        <PauseCircle className="w-5 h-5 text-gray-600" /> :
-                                        <PlayCircle className="w-5 h-5 text-gray-600" />
-                                    }
-                                </button>
-                                <button className="p-2 hover:bg-gray-100 rounded-lg">
-                                    <Settings className="w-5 h-5 text-gray-600" />
-                                </button>
-                                <button className="p-2 hover:bg-gray-100 rounded-lg">
-                                    <MoreVertical className="w-5 h-5 text-gray-600" />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-6">
-                                <span className="text-gray-600">
-                                    {new Date(campaign.startDate).toLocaleDateString()} - {new Date(campaign.endDate).toLocaleDateString()}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    {campaign.channels.map(channel => {
-                                        const ChannelIcon = {
-                                            email: Mail,
-                                            linkedin: Linkedin,
-                                            phone: Phone
-                                        }[channel];
-                                        return <ChannelIcon key={channel} className="w-4 h-4 text-gray-600" />;
-                                    })}
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <span className="text-gray-600">{campaign.metrics.sent} sent</span>
-                                <span className="text-gray-600">{campaign.metrics.responses} responses</span>
-                                <span className="text-gray-600">{campaign.metrics.meetings} meetings</span>
-                            </div>
-                        </div>
-                        <div className="mt-3">
-                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-blue-600 rounded-full"
-                                    style={{ width: `${campaign.progress}%` }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                ))}
+    const handleCreateCampaign = async (campaignData) => {
+        try {
+            await createCampaign(campaignData);
+            await fetchData(); // Refresh data
+            setIsCampaignModalOpen(false);
+        } catch (error) {
+            console.error('Error creating campaign:', error);
+        }
+    };
+
+    const handleDeactivateCampaign = async (campaignId) => {
+        try {
+            await deactivateCampaign(campaignId);
+            await fetchData(); // Refresh data
+        } catch (error) {
+            console.error('Error deactivating campaign:', error);
+        }
+    };
+
+    const handleActivateCampaign = async (campaignId) => {
+        try {
+            await activateCampaign(campaignId);
+            await fetchData(); // Refresh data
+        } catch (error) {
+            console.error('Error activating campaign:', error);
+        }
+    };
+
+    const CampaignCard = ({ campaign }) => (
+        <div
+            onClick={() => navigate(`/outreach-portal/campaign/${campaign.id}`)}
+            className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200"
+        >
+            <h3 className="text-lg font-semibold text-gray-900">{campaign.Name}</h3>
+            <p className="text-sm text-gray-500 mt-2">List: {campaign.List}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+                {Object.entries({
+                    Email: campaign.Email,
+                    Phone: campaign.Phone,
+                    LinkedIn: campaign.Linkedin,
+                    Facebook: campaign.Facebook,
+                    Instagram: campaign.Instagram,
+                    Twitter: campaign.Twitter
+                })
+                    .filter(([_, enabled]) => enabled === true)
+                    .map(([channel]) => (
+                        <span
+                            key={channel}
+                            className="px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium"
+                        >
+                            {channel}
+                        </span>
+                    ))}
             </div>
         </div>
     );
 
+    const handleAddProspects = (list) => {
+        setSelectedList(list);
+        setIsListsModalOpen(false);
+        setIsAddProspectsModalOpen(true);
+    };
+
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Main Dashboard */}
-            <div className="bg-white border-b">
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate('/')}
-                            className="p-2 hover:bg-gray-100 rounded-lg"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <h1 className="text-xl font-semibold">Julie's Outreach Dashboard</h1>
+        <div className="p-8 max-w-7xl mx-auto">
+            {/* Welcome Message */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-8 rounded-2xl mb-8 border border-blue-100">
+                <div className="flex items-center gap-8">
+                    <img
+                        src={JULIE_IMAGE}
+                        alt="Julie AI Assistant"
+                        className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
+                    />
+                    <div className="max-w-3xl">
+                        <h1 className="text-2xl font-semibold text-gray-900 mb-4">
+                            Hi, I'm Julie!
+                        </h1>
+                        <p className="text-lg text-gray-600">
+                            I'm here to help you manage your outreach campaigns effectively.
+                            Whether you're reaching out to potential clients, partners, or building
+                            your network, I'll help you stay organized and efficient.
+                        </p>
                     </div>
                 </div>
             </div>
 
-            {/* Dashboard Content */}
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                <CampaignsList />
-
-                {/* Rest of the dashboard content */}
-                {/* ... (previous prospect list code remains the same) */}
+            {/* Action Buttons */}
+            <div className="flex gap-4 mb-8">
+                <button
+                    onClick={() => setIsCampaignModalOpen(true)}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    <Plus className="w-5 h-5 mr-2" />
+                    New Campaign
+                </button>
+                <button
+                    onClick={() => setIsListModalOpen(true)}
+                    className="flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                    <ListPlus className="w-5 h-5 mr-2" />
+                    Add List
+                </button>
+                <button
+                    onClick={() => setIsListsModalOpen(true)}
+                    className="flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                    <List className="w-5 h-5 mr-2" />
+                    View Lists
+                </button>
+                <button
+                    onClick={() => setIsAddProspectsModalOpen(true)}
+                    className="flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                    <UserPlus className="w-5 h-5 mr-2" />
+                    Add Prospects
+                </button>
             </div>
 
-            {/* Campaign Creation Slide-over */}
-            {/* ... (previous campaign creation code remains the same) */}
+            {/* Active Campaigns */}
+            <div className="mb-8">
+                <div className="flex items-center mb-4">
+                    <Activity className="w-5 h-5 text-green-500 mr-2" />
+                    <h2 className="text-xl font-semibold text-gray-900">Active Campaigns</h2>
+                </div>
+                {isLoading ? (
+                    <LoadingCampaignsSection />
+                ) : campaigns.active.length === 0 ? (
+                    <EmptyState
+                        title="No Active Campaigns"
+                        description="Create a new campaign to start reaching out to your prospects."
+                    />
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {campaigns.active.map(campaign => (
+                            <CampaignCard key={campaign.id} campaign={campaign} />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Inactive Campaigns */}
+            <div>
+                <div className="flex items-center mb-4">
+                    <Clock className="w-5 h-5 text-gray-400 mr-2" />
+                    <h2 className="text-xl font-semibold text-gray-900">Past Campaigns</h2>
+                </div>
+                {isLoading ? (
+                    <LoadingCampaignsSection />
+                ) : campaigns.inactive.length === 0 ? (
+                    <EmptyState
+                        title="No Past Campaigns"
+                        description="Completed or deactivated campaigns will appear here."
+                    />
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {campaigns.inactive.map(campaign => (
+                            <CampaignCard key={campaign.id} campaign={campaign} />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Add Campaign Modal */}
+            <CampaignModal
+                isOpen={isCampaignModalOpen}
+                onClose={() => setIsCampaignModalOpen(false)}
+                lists={lists || []}
+                onSave={handleCreateCampaign}
+            />
+
+            {/* List Modal */}
+            <ListModal
+                isOpen={isListModalOpen}
+                onClose={() => setIsListModalOpen(false)}
+                onSave={async (listData) => {
+                    try {
+                        await uploadToN8N(listData.file, listData.name, listData.tags);
+                        await fetchData(); // Refresh lists after successful upload
+                        setIsListModalOpen(false);
+                    } catch (error) {
+                        console.error('Error creating list:', error);
+                        // Handle error (you might want to show an error message)
+                    }
+                }}
+            />
+
+            {/* Lists Modal */}
+            <ListsModal
+                isOpen={isListsModalOpen}
+                onClose={() => setIsListsModalOpen(false)}
+                lists={lists}
+                onAddProspects={handleAddProspects}
+                onListRemoved={fetchData}
+            />
+
+            {/* Add Prospects Modal */}
+            <ListModal
+                isOpen={isAddProspectsModalOpen}
+                onClose={() => {
+                    setIsAddProspectsModalOpen(false);
+                    setSelectedList(null);
+                }}
+                mode="addProspects"
+                lists={lists}
+                onSave={async (data) => {
+                    try {
+                        await addProspectsToList(data.selectedListId, data.file);
+                        await fetchData();
+                        setIsAddProspectsModalOpen(false);
+                        setSelectedList(null);
+                    } catch (error) {
+                        console.error('Error adding prospects:', error);
+                    }
+                }}
+            />
         </div>
     );
 };

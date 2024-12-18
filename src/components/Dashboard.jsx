@@ -1,11 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Home,
-    BarChart2,
-    Settings,
-    HelpCircle,
-    Menu,
     Mail,
     PenTool,
     Headphones,
@@ -21,7 +16,7 @@ const Dashboard = () => {
             role: 'Sales Outreach Agent',
             description: 'Cold emails, calls, and direct messages',
             icon: <Mail className="w-6 h-6" />,
-            path: '/agents/julie',
+            path: '/outreach-portal',
             color: 'bg-blue-50',
             image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80'
         },
@@ -55,11 +50,7 @@ const Dashboard = () => {
     ];
 
     const handleAgentClick = (path) => {
-        if (path === '/agents/julie') {
-            navigate('/outreach-portal');
-        } else {
-            console.log(`Navigation to ${path} not implemented yet`);
-        }
+        navigate(path);
     };
 
     return (

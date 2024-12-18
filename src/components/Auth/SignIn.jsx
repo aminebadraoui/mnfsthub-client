@@ -16,18 +16,10 @@ const SignIn = () => {
         setIsLoading(true);
 
         try {
-            const response = await signIn(email, password);
-
-            if (!response.auth) {
-                // Handle authentication failures
-                setError(response.reason);
-                return;
-            }
-
-            localStorage.setItem('token', response.token);
+            const data = await signIn(email, password);
             navigate('/');
         } catch (err) {
-            setError('An unexpected error occurred. Please try again.');
+            setError(err.message || 'Failed to sign in');
         } finally {
             setIsLoading(false);
         }
@@ -75,8 +67,8 @@ const SignIn = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className={`block w-full pl-10 sm:text-sm rounded-md focus:ring-2 focus:ring-offset-2 ${error === "User doesn't exist"
-                                            ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
-                                            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                                        ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
+                                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                                         }`}
                                     placeholder="you@example.com"
                                 />
@@ -103,8 +95,8 @@ const SignIn = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className={`block w-full pl-10 sm:text-sm rounded-md focus:ring-2 focus:ring-offset-2 ${error === 'Wrong Password'
-                                            ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
-                                            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                                        ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500'
+                                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                                         }`}
                                 />
                             </div>
@@ -120,8 +112,8 @@ const SignIn = () => {
                                 type="submit"
                                 disabled={isLoading}
                                 className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${isLoading
-                                        ? 'bg-blue-400 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                    ? 'bg-blue-400 cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
                                     }`}
                             >
                                 {isLoading ? 'Signing in...' : 'Sign in'}

@@ -1,43 +1,47 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Dashboard from './components/Dashboard';
-import OutreachPortal from './components/OutreachPortal';
-import CampaignDetails from './components/CampaignDetails';
-import DashboardLayout from './components/DashboardLayout';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SignIn from './components/Auth/SignIn';
 import SignUp from './components/Auth/SignUp';
-import './App.css';
+import Dashboard from './components/Dashboard';
+import OutreachPortal from './components/OutreachPortal';
+import DashboardLayout from './components/DashboardLayout';
 
-const PrivateRoute = ({ children }) => {
+const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
-  console.log(token);
+  const tenantId = localStorage.getItem('tenantId');
 
-  // Check if token exists and is not "undefined"
-  if (!token || token === "undefined" || token === "null") {
-    localStorage.removeItem('token'); // Clean up invalid token
-    return <Navigate to="/signin" />;
+  if (!token || !tenantId) {
+    return <Navigate to="/signin" replace />;
   }
 
-  return children;
+  return <DashboardLayout>{children}</DashboardLayout>;
 };
 
-function App() {
+const App = () => {
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route element={
-          <PrivateRoute>
-            <DashboardLayout />
-          </PrivateRoute>
-        }>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/outreach-portal" element={<OutreachPortal />} />
-          <Route path="/outreach-portal/campaign/:id" element={<CampaignDetails />} />
-        </Route>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/outreach-portal/*"
+          element={
+            <ProtectedRoute>
+              <OutreachPortal />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;
