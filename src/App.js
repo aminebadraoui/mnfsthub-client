@@ -4,7 +4,9 @@ import SignIn from './components/Auth/SignIn';
 import SignUp from './components/Auth/SignUp';
 import Dashboard from './components/Dashboard';
 import OutreachPortal from './components/OutreachPortal';
+import CampaignDetails from './components/CampaignDetails';
 import DashboardLayout from './components/DashboardLayout';
+import KnowledgeBase from './components/KnowledgeBase';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -32,10 +34,26 @@ const App = () => {
           }
         />
         <Route
-          path="/outreach-portal/*"
+          path="/outreach-portal"
           element={
             <ProtectedRoute>
               <OutreachPortal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/outreach-portal/campaign/:id"
+          element={
+            <ProtectedRoute>
+              <CampaignDetails />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/knowledge-base"
+          element={
+            <ProtectedRoute>
+              <KnowledgeBase />
             </ProtectedRoute>
           }
         />

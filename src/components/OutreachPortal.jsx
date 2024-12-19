@@ -4,16 +4,8 @@ import { Plus, ListPlus, Activity, Clock, List, UserPlus } from 'lucide-react';
 import ListModal from './ListModal';
 import ListsModal from './ListsModal';
 import CampaignModal from './CampaignModal';
-import {
-    getLists,
-    uploadToN8N,
-    addProspectsToList,
-    getCampaigns,
-    createCampaign,
-    deactivateCampaign,
-    activateCampaign,
-    removeCampaign
-} from '../services/n8nService';
+import baserowService from '../services/baserow.service';
+import AddProspectsModal from './AddProspectsModal';
 
 const JULIE_IMAGE = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80';
 
@@ -71,24 +63,32 @@ const OutreachPortal = () => {
             setIsLoading(true);
             console.log('Starting data fetch...');
 
-            const listsData = await getLists();
-            console.log('Lists data received:', listsData);
-            setLists(listsData);
+            // Fetch lists with active filter
+            const listsResponse = await baserowService.getLists({
+                filters: { Active: true }
+            });
+            console.log('Lists data received:', listsResponse);
+            setLists(listsResponse.results);
 
-            const campaignsData = await getCampaigns();
-            console.log('Campaigns data received:', campaignsData);
+            // Fetch all campaigns
+            const campaignsResponse = await baserowService.getCampaigns();
+            console.log('Campaigns data received:', campaignsResponse);
 
-            // Process campaigns data - it's directly an array
-            if (Array.isArray(campaignsData)) {
-                // Set campaigns state based on Active property
-                setCampaigns({
-                    active: campaignsData.filter(campaign => campaign.Active === true),
-                    inactive: campaignsData.filter(campaign => campaign.Active === false)
-                });
-            }
+            // Split campaigns based on Active property
+            const activeCampaigns = campaignsResponse.results.filter(campaign => campaign.Active === true);
+            const inactiveCampaigns = campaignsResponse.results.filter(campaign => campaign.Active === false);
+
+            setCampaigns({
+                active: activeCampaigns,
+                inactive: inactiveCampaigns
+            });
         } catch (error) {
             console.error('Error fetching data:', error);
             setError('Failed to fetch data');
+            // If tenant ID is missing, redirect to sign in
+            if (error.message === 'No tenant ID found. Please sign in.') {
+                navigate('/signin');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -96,8 +96,19 @@ const OutreachPortal = () => {
 
     const handleCreateCampaign = async (campaignData) => {
         try {
-            await createCampaign(campaignData);
-            await fetchData(); // Refresh data
+            await baserowService.createCampaign({
+                Name: campaignData.Name,
+                List: campaignData.List,
+                Active: true,
+                Email: campaignData.Email,
+                Phone: campaignData.Phone,
+                Linkedin: campaignData.LinkedIn,
+                Facebook: campaignData.Facebook,
+                Instagram: campaignData.Instagram,
+                Twitter: campaignData.Twitter,
+                Tenant_ID: campaignData.Tenant_ID
+            });
+            await fetchData();
             setIsCampaignModalOpen(false);
         } catch (error) {
             console.error('Error creating campaign:', error);
@@ -106,8 +117,8 @@ const OutreachPortal = () => {
 
     const handleDeactivateCampaign = async (campaignId) => {
         try {
-            await deactivateCampaign(campaignId);
-            await fetchData(); // Refresh data
+            await baserowService.updateCampaign(campaignId, { Active: false });
+            await fetchData();
         } catch (error) {
             console.error('Error deactivating campaign:', error);
         }
@@ -115,8 +126,8 @@ const OutreachPortal = () => {
 
     const handleActivateCampaign = async (campaignId) => {
         try {
-            await activateCampaign(campaignId);
-            await fetchData(); // Refresh data
+            await baserowService.updateCampaign(campaignId, { Active: true });
+            await fetchData();
         } catch (error) {
             console.error('Error activating campaign:', error);
         }
@@ -151,10 +162,13 @@ const OutreachPortal = () => {
         </div>
     );
 
-    const handleAddProspects = (list) => {
-        setSelectedList(list);
-        setIsListsModalOpen(false);
+    const handleAddProspects = () => {
         setIsAddProspectsModalOpen(true);
+    };
+
+    const handleAddProspectsClose = () => {
+        setIsAddProspectsModalOpen(false);
+        setSelectedList(null);
     };
 
     return (
@@ -190,11 +204,11 @@ const OutreachPortal = () => {
                     New Campaign
                 </button>
                 <button
-                    onClick={() => setIsListModalOpen(true)}
+                    onClick={handleAddProspects}
                     className="flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
                 >
-                    <ListPlus className="w-5 h-5 mr-2" />
-                    Add List
+                    <UserPlus className="w-5 h-5 mr-2" />
+                    Add Prospects
                 </button>
                 <button
                     onClick={() => setIsListsModalOpen(true)}
@@ -202,13 +216,6 @@ const OutreachPortal = () => {
                 >
                     <List className="w-5 h-5 mr-2" />
                     View Lists
-                </button>
-                <button
-                    onClick={() => setIsAddProspectsModalOpen(true)}
-                    className="flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-                >
-                    <UserPlus className="w-5 h-5 mr-2" />
-                    Add Prospects
                 </button>
             </div>
 
@@ -270,12 +277,16 @@ const OutreachPortal = () => {
                 onClose={() => setIsListModalOpen(false)}
                 onSave={async (listData) => {
                     try {
-                        await uploadToN8N(listData.file, listData.name, listData.tags);
-                        await fetchData(); // Refresh lists after successful upload
+                        await baserowService.createList({
+                            Name: listData.name,
+                            Tags: listData.tags,
+                            Active: true,
+                            Tenant_ID: listData.tenant_id
+                        });
+                        await fetchData();
                         setIsListModalOpen(false);
                     } catch (error) {
                         console.error('Error creating list:', error);
-                        // Handle error (you might want to show an error message)
                     }
                 }}
             />
@@ -290,23 +301,15 @@ const OutreachPortal = () => {
             />
 
             {/* Add Prospects Modal */}
-            <ListModal
-                isOpen={isAddProspectsModalOpen}
-                onClose={() => {
-                    setIsAddProspectsModalOpen(false);
-                    setSelectedList(null);
-                }}
-                mode="addProspects"
+            <AddProspectsModal
+                open={isAddProspectsModalOpen}
+                onClose={handleAddProspectsClose}
                 lists={lists}
-                onSave={async (data) => {
-                    try {
-                        await addProspectsToList(data.selectedListId, data.file);
-                        await fetchData();
-                        setIsAddProspectsModalOpen(false);
-                        setSelectedList(null);
-                    } catch (error) {
-                        console.error('Error adding prospects:', error);
-                    }
+                onListCreated={async (newList) => {
+                    await fetchData();
+                }}
+                onProspectsAdded={async () => {
+                    await fetchData();
                 }}
             />
         </div>

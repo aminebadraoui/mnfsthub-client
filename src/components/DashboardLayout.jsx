@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Users, Settings, LogOut } from 'lucide-react';
+import { LayoutGrid, Users, Settings, LogOut, BookOpen } from 'lucide-react';
 import { logout } from '../services/authService';
 
 const DashboardLayout = ({ children }) => {
@@ -17,6 +17,11 @@ const DashboardLayout = ({ children }) => {
             name: 'Outreach Portal',
             icon: <Users className="w-5 h-5" />,
             path: '/outreach-portal'
+        },
+        {
+            name: 'Add Knowledge Base',
+            icon: <BookOpen className="w-5 h-5" />,
+            path: '/knowledge-base'
         },
         {
             name: 'Settings',
