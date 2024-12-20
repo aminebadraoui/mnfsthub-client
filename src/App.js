@@ -7,7 +7,7 @@ import Lists from './components/Lists/Lists';
 import Campaigns from './components/Campaigns/Campaigns';
 import KnowledgeBase from './components/KnowledgeBase';
 import OutreachPortal from './components/OutreachPortal';
-import CampaignDetails from './components/CampaignDetails';
+import CampaignDetails from './components/Campaigns/CampaignDetails';
 import ContactsTable from './components/Lists/ContactsTable';
 import { Box, Container } from '@mui/material';
 import Navigation from './components/Navigation/Navigation';
