@@ -1,160 +1,160 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Box,
-    Container,
     Typography,
     Tabs,
     Tab,
-    Card,
-    CardContent,
-    Grid,
+    Paper,
     Chip,
-    CircularProgress,
-    Pagination,
-    IconButton
+    IconButton,
+    Stack
 } from '@mui/material';
-import { Email, Phone, LinkedIn, Facebook, Instagram, Twitter } from '@mui/icons-material';
-import baserowService from '../../services/baserow.service';
+import EmailIcon from '@mui/icons-material/Email';
+import PhoneIcon from '@mui/icons-material/Phone';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import TwitterIcon from '@mui/icons-material/Twitter';
 
-export default function Campaigns() {
-    const [campaigns, setCampaigns] = useState([]);
-    const [loading, setLoading] = useState(false);
+const Campaigns = () => {
     const [activeTab, setActiveTab] = useState(0);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [pageSize] = useState(25);
-
-    useEffect(() => {
-        fetchCampaigns();
-    }, [activeTab, page]);
-
-    const fetchCampaigns = async () => {
-        try {
-            setLoading(true);
-            const options = {
-                page,
-                size: pageSize,
-                filters: {
-                    Active: activeTab === 0 // true for active campaigns, false for past campaigns
-                }
-            };
-
-            const response = await baserowService.getCampaigns(options);
-            setCampaigns(response.results);
-            setTotalPages(response.totalPages);
-        } catch (error) {
-            console.error('Error fetching campaigns:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleTabChange = (event, newValue) => {
         setActiveTab(newValue);
-        setPage(1); // Reset to first page when switching tabs
     };
 
-    const handlePageChange = (event, value) => {
-        setPage(value);
-    };
+    const campaigns = [
+        {
+            name: "CEOs in Dubai",
+            status: "Active",
+            list: "ceo dubai",
+            channels: ["email", "phone", "linkedin", "facebook", "instagram", "twitter"]
+        }
+    ];
 
-    const CampaignCard = ({ campaign }) => {
-        const channelIcons = [
-            { name: 'Email', icon: Email, enabled: campaign.Email },
-            { name: 'Phone', icon: Phone, enabled: campaign.Phone },
-            { name: 'LinkedIn', icon: LinkedIn, enabled: campaign.Linkedin },
-            { name: 'Facebook', icon: Facebook, enabled: campaign.Facebook },
-            { name: 'Instagram', icon: Instagram, enabled: campaign.Instagram },
-            { name: 'Twitter', icon: Twitter, enabled: campaign.Twitter }
-        ];
+    const renderChannelIcons = (channels) => {
+        const iconMap = {
+            email: <EmailIcon />,
+            phone: <PhoneIcon />,
+            linkedin: <LinkedInIcon />,
+            facebook: <FacebookIcon />,
+            instagram: <InstagramIcon />,
+            twitter: <TwitterIcon />
+        };
 
         return (
-            <Card sx={{ height: '100%' }}>
-                <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                        {campaign.Name}
-                    </Typography>
-                    <Box mt={2}>
-                        <Chip
-                            label={campaign.Active ? 'Active' : 'Inactive'}
-                            color={campaign.Active ? 'success' : 'default'}
-                            size="small"
-                            sx={{ mr: 1 }}
-                        />
-                        <Chip
-                            label={`List: ${campaign.List}`}
-                            variant="outlined"
-                            size="small"
-                        />
-                    </Box>
-                    <Box mt={2} display="flex" gap={1}>
-                        {channelIcons.map(({ name, icon: Icon, enabled }) => enabled && (
-                            <IconButton
-                                key={name}
-                                size="small"
-                                color="primary"
-                                title={name}
-                            >
-                                <Icon fontSize="small" />
-                            </IconButton>
-                        ))}
-                    </Box>
-                </CardContent>
-            </Card>
+            <Stack direction="row" spacing={1}>
+                {channels.map(channel => (
+                    <IconButton
+                        key={channel}
+                        size="small"
+                        sx={{
+                            color: '#6B46C1',
+                            '&:hover': {
+                                bgcolor: '#F3E8FF'
+                            }
+                        }}
+                    >
+                        {iconMap[channel]}
+                    </IconButton>
+                ))}
+            </Stack>
         );
     };
 
     return (
-        <Container maxWidth="lg">
-            <Box sx={{ my: 4 }}>
-                <Typography variant="h4" component="h1" gutterBottom>
-                    Campaigns
-                </Typography>
+        <Box>
+            <Typography variant="h4" gutterBottom sx={{ color: '#2D3748', fontWeight: 600, mb: 4 }}>
+                Campaigns
+            </Typography>
 
-                <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-                    <Tabs value={activeTab} onChange={handleTabChange}>
-                        <Tab label="Active Campaigns" />
-                        <Tab label="Past Campaigns" />
-                    </Tabs>
-                </Box>
+            <Tabs
+                value={activeTab}
+                onChange={handleTabChange}
+                sx={{
+                    mb: 4,
+                    '& .MuiTab-root': {
+                        color: '#4A5568',
+                        '&.Mui-selected': {
+                            color: '#6B46C1'
+                        }
+                    },
+                    '& .MuiTabs-indicator': {
+                        backgroundColor: '#6B46C1'
+                    }
+                }}
+            >
+                <Tab
+                    label="ACTIVE CAMPAIGNS"
+                    sx={{
+                        fontWeight: 600,
+                        fontSize: '0.875rem'
+                    }}
+                />
+                <Tab
+                    label="PAST CAMPAIGNS"
+                    sx={{
+                        fontWeight: 600,
+                        fontSize: '0.875rem'
+                    }}
+                />
+            </Tabs>
 
-                {loading ? (
-                    <Box display="flex" justifyContent="center" my={4}>
-                        <CircularProgress />
-                    </Box>
-                ) : (
-                    <>
-                        <Grid container spacing={3}>
-                            {campaigns.map((campaign) => (
-                                <Grid item xs={12} sm={6} md={4} key={campaign.id}>
-                                    <CampaignCard campaign={campaign} />
-                                </Grid>
-                            ))}
-                        </Grid>
-
-                        {campaigns.length === 0 && (
-                            <Box textAlign="center" mt={4}>
-                                <Typography color="textSecondary">
-                                    {activeTab === 0
-                                        ? 'No active campaigns found'
-                                        : 'No past campaigns found'}
+            {activeTab === 0 && (
+                <Box>
+                    {campaigns.map((campaign) => (
+                        <Paper
+                            key={campaign.name}
+                            sx={{
+                                p: 3,
+                                mb: 2,
+                                borderRadius: 2,
+                                border: '1px solid #E9D8FD',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                    boxShadow: '0 4px 6px -1px rgba(107, 70, 193, 0.1), 0 2px 4px -1px rgba(107, 70, 193, 0.06)',
+                                    bgcolor: '#FAFAFA'
+                                }
+                            }}
+                        >
+                            <Box sx={{ mb: 2 }}>
+                                <Typography variant="h6" gutterBottom sx={{ color: '#2D3748', fontWeight: 600 }}>
+                                    {campaign.name}
                                 </Typography>
+                                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                                    <Chip
+                                        label={campaign.status}
+                                        size="small"
+                                        sx={{
+                                            bgcolor: '#F3E8FF',
+                                            color: '#6B46C1',
+                                            fontWeight: 500
+                                        }}
+                                    />
+                                    <Chip
+                                        label={`List: ${campaign.list}`}
+                                        size="small"
+                                        sx={{
+                                            bgcolor: '#F3E8FF',
+                                            color: '#6B46C1',
+                                            fontWeight: 500
+                                        }}
+                                    />
+                                </Box>
                             </Box>
-                        )}
+                            {renderChannelIcons(campaign.channels)}
+                        </Paper>
+                    ))}
+                </Box>
+            )}
 
-                        {campaigns.length > 0 && (
-                            <Box display="flex" justifyContent="center" mt={4}>
-                                <Pagination
-                                    count={totalPages}
-                                    page={page}
-                                    onChange={handlePageChange}
-                                    color="primary"
-                                />
-                            </Box>
-                        )}
-                    </>
-                )}
-            </Box>
-        </Container>
+            {activeTab === 1 && (
+                <Box sx={{ textAlign: 'center', color: '#4A5568', mt: 4 }}>
+                    No past campaigns to show.
+                </Box>
+            )}
+        </Box>
     );
-} 
+};
+
+export default Campaigns; 

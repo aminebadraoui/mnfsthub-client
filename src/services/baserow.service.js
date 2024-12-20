@@ -135,8 +135,8 @@ class BaserowService {
         if (Object.keys(filters).length > 0) {
             Object.entries(filters).forEach(([key, value]) => {
                 if (value !== undefined && value !== '' && value !== 'N/A') {
-                    // Always use exact matching
-                    queryParts.push(`filter__${encodeURIComponent(key)}__equal=${encodeURIComponent(value)}`);
+                    // Send plain filter keys without prefixes
+                    queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
                 }
             });
         }

@@ -41,157 +41,79 @@ const AddProspectsModal = ({ open, onClose, lists, onListCreated, onProspectsAdd
     };
 
     const handleSubmit = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            setError(''); // Clear any previous errors
-            let listId;
-            let listName;
-            let listTags;
-            const tenantId = localStorage.getItem('tenantId'); // Get tenant ID
-
-            // Step 1: If creating new list, check for duplicates and add to Baserow Lists table
-            if (mode === 'create') {
-                // Check for duplicate lists first
-                console.log('Checking for duplicate list:', {
-                    'Tenant ID': tenantId,
-                    'Name': newListName
-                });
-
-                const existingLists = await baserowService.getLists({
-                    filters: {
-                        'Tenant ID': tenantId
-                    }
-                });
-
-                // Check for exact name match (case-sensitive)
-                const hasDuplicate = existingLists.results.some(list =>
-                    list.Name === newListName
-                );
-
-                if (hasDuplicate) {
-                    throw new Error(`A list with name "${newListName}" already exists`);
-                }
-
-                // Create list data with exact column names from Baserow
-                const listData = {
-                    'Name': newListName,
-                    'Tags': tags.join(','),
-                    'Tenant ID': tenantId,
-                    'Active': true
-                };
-
-                console.log('Creating new list with data:', listData);
-                const newList = await baserowService.createList(listData);
-
-                console.log('New list created:', newList);
-                listId = newList.id;
-                listName = newListName;
-                listTags = tags.join(',');
-                onListCreated(newList);
-            } else {
-                // Get the selected list's details
-                const selectedListDetails = lists.find(l => l.id === selectedList);
-                listName = selectedListDetails.Name;
-                listTags = selectedListDetails.Tags;
-                listId = selectedList;
+            // Check for duplicate list name
+            const duplicate = lists.find(list => list.name.toLowerCase() === newListName.toLowerCase());
+            if (duplicate) {
+                setError('A list with this name already exists');
+                setLoading(false);
+                return;
             }
 
-            // Step 2: Send CSV to n8n webhook for normalization
+            // Create new list in Baserow
+            const newList = await baserowService.createList({
+                'Name': newListName,
+                'Tags': tags.join(','),
+                'Tenant ID': localStorage.getItem('tenantId'),
+                'Active': true
+            });
+
+            // Upload prospects to n8n webhook
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('listId', newList.id);
+            formData.append('listName', newListName);
 
-            console.log('Sending file to n8n webhook for normalization');
             const response = await fetch('https://mnfst-n8n.mnfstagency.com/webhook/outreach/lists/add', {
                 method: 'POST',
                 body: formData
             });
 
+            const data = await response.json();
+
+            console.log(data);
+
             if (!response.ok) {
-                throw new Error('Failed to normalize data through n8n');
+                throw new Error('Failed to upload prospects');
             }
 
-            const normalizedData = await response.json();
-            console.log('Normalized data received from n8n:', normalizedData);
+            // Add contacts to Baserow contacts table
+            if (data.list && Array.isArray(data.list)) {
+                const contactPromises = data.list.map(contact =>
+                    baserowService.createContact({
+                        'Company': contact.Company || 'N/A',
+                        'Email': contact.Email || 'N/A',
+                        'Employee Number': contact['Employee Number'] || 'N/A',
+                        'Facebook': contact.Facebook || '',
+                        'First name': contact['First name'] || '',
+                        'Full name': contact['Full name'] || '',
+                        'Industry': contact.Industry || 'N/A',
+                        'Instagram': contact.Instagram || '',
+                        'Job title': contact['Job title'] || 'N/A',
+                        'Last name': contact['Last name'] || '',
+                        'LinkedIn': contact.LinkedIn || 'N/A',
+                        'List Name': contact['List Name'] || newListName,
+                        'Location': contact.Location || 'N/A',
+                        'Phone': contact.Phone || 'N/A',
+                        'Tags': contact.Tags || '',
+                        'Tenant ID': localStorage.getItem('tenantId'),
+                        'Tiktok': contact.Tiktok || null,
+                        'Twitter': contact.Twitter || ''
+                    })
+                );
 
-            // Check if normalizedData has the expected structure
-            if (!normalizedData?.list || !Array.isArray(normalizedData.list)) {
-                throw new Error('Invalid response format from n8n');
+                await Promise.all(contactPromises);
             }
 
-            // Step 3: Add list details to each contact in normalized data
-            const contacts = normalizedData.list.map(contact => {
-                // Create a new contact object with the exact Baserow field names
-                const contactData = {
-                    'Tenant ID': tenantId,
-                    'Full name': contact['Full name'] || contact['Full Name'] || '',
-                    'First n': contact['First name'] || contact['First Name'] || '',
-                    'Last': contact['Last name'] || contact['Last Name'] || '',
-                    'Location': contact['Location'] || '',
-                    'Job title': contact['Job title'] || contact['Job Title'] || '',
-                    'Company': contact['Company'] || '',
-                    'Email': contact['Email'] || '',
-                    'Phone': contact['Phone'] || '',
-                    'LinkedIn': contact['LinkedIn'] || contact['Linkedin'] || '',
-                    'Instagram': contact['Instagram'] || '',
-                    'Facebook': contact['Facebook'] || '',
-                    'Twitter': contact['Twitter'] || '',
-                    'Industry': contact['Industry'] || '',
-                    'List Name': listName,
-                    'Tags': listTags,
-                    'Active': true
-                };
-
-                // Log the contact data for debugging
-                console.log('Created contact data:', contactData);
-                return contactData;
-            });
-
-            console.log('Contacts to add:', contacts);
-
-            // Step 4: Check for duplicates and add to Baserow Contacts table
-            let addedCount = 0;
-            let duplicateCount = 0;
-
-            for (const contact of contacts) {
-                try {
-                    // Only check for duplicates if we have an email
-                    if (contact.Email && contact.Email !== 'N/A') {
-                        // Check for duplicates based on Tenant ID and Email
-                        const existingContacts = await baserowService.getContacts({
-                            filters: {
-                                'Tenant ID': contact['Tenant ID'],  // Use exact Baserow field name with space
-                                'Email': contact.Email
-                            }
-                        });
-
-                        if (existingContacts.count === 0) {
-                            // Not a duplicate, add to Baserow
-                            console.log('Adding new contact:', contact);
-                            await baserowService.createContact(contact);
-                            addedCount++;
-                        } else {
-                            console.log('Found duplicate contact:', contact);
-                            duplicateCount++;
-                        }
-                    } else {
-                        // If no email, just add the contact
-                        console.log('Adding contact without email check:', contact);
-                        await baserowService.createContact(contact);
-                        addedCount++;
-                    }
-                } catch (error) {
-                    console.error('Error processing contact:', error);
-                    // Continue with the next contact even if one fails
-                }
-            }
-
-            console.log(`Added ${addedCount} contacts, found ${duplicateCount} duplicates`);
-            onProspectsAdded();
+            // Close modal and trigger processing state
             onClose();
+            onListCreated(newList);
+            onProspectsAdded(newListName);
+
         } catch (error) {
-            console.error('Error adding prospects:', error);
-            setError(error.message);
-            // TODO: Show error message to user
+            console.error('Error submitting list:', error);
+            setError('Failed to create list and add contacts. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -239,7 +161,7 @@ const AddProspectsModal = ({ open, onClose, lists, onListCreated, onProspectsAdd
                             <option value="">Select a list...</option>
                             {lists.map((list) => (
                                 <option key={list.id} value={list.id}>
-                                    {list.Name}
+                                    {list.name}
                                 </option>
                             ))}
                             <option value="create">+ Create new list</option>
