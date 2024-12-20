@@ -105,11 +105,13 @@ class BaserowService {
     }
 
     async createCampaign(data) {
+        console.log('Creating campaign with data:', data);
         const campaignData = {
             ...data,
             'Tenant ID': this.getTenantId()
         };
         const response = await api.post('/campaigns', campaignData);
+        console.log('Campaign created:', response.data);
         return response.data;
     }
 
