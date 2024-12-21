@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -12,11 +12,18 @@ import {
     MenuItem,
     FormControl,
     FormHelperText,
+    FormLabel,
     Chip,
     IconButton,
     Grid,
     OutlinedInput,
-    InputLabel
+    InputLabel,
+    CircularProgress,
+    FormGroup,
+    FormControlLabel,
+    Checkbox,
+    ListItemText,
+    Alert
 } from '@mui/material';
 import {
     Close as CloseIcon,
@@ -38,36 +45,24 @@ const CHANNELS = [
     { id: 'twitter', name: 'X (Twitter)', icon: TwitterIcon, color: '#000000', description: 'Connect through X (Twitter) DMs' },
 ];
 
-const CampaignModal = ({ isOpen, onClose, onSubmit, lists = [], isLoading }) => {
+const CampaignModal = ({ isOpen, onClose, onSubmit, lists = [], isLoading, campaign = null }) => {
     const [name, setName] = useState('');
     const [selectedLists, setSelectedLists] = useState([]);
     const [selectedChannels, setSelectedChannels] = useState([]);
-    const [hoveredChannel, setHoveredChannel] = useState(null);
     const [formErrors, setFormErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleListChange = (event) => {
-        setSelectedLists(event.target.value);
-        setFormErrors({ ...formErrors, lists: '' });
-    };
-
-    const handleChannelClick = (channelId) => {
-        setSelectedChannels(prev =>
-            prev.includes(channelId)
-                ? prev.filter(id => id !== channelId)
-                : [...prev, channelId]
-        );
-        setFormErrors({ ...formErrors, channels: '' });
-    };
-
-    const validateForm = () => {
-        const errors = {};
-        if (!name.trim()) errors.name = 'Campaign name is required';
-        if (selectedLists.length === 0) errors.lists = 'Please select at least one list';
-        if (selectedChannels.length === 0) errors.channels = 'Please select at least one channel';
-        setFormErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
+    useEffect(() => {
+        if (campaign) {
+            setName(campaign.name);
+            setSelectedLists(campaign.listId ? campaign.listId.split(', ') : []);
+            setSelectedChannels(campaign.channels);
+        } else {
+            setName('');
+            setSelectedLists([]);
+            setSelectedChannels([]);
+        }
+    }, [campaign, isOpen]);
 
     const handleSubmit = async () => {
         if (validateForm()) {
@@ -87,7 +82,7 @@ const CampaignModal = ({ isOpen, onClose, onSubmit, lists = [], isLoading }) => 
                     throw new Error('Selected lists not found');
                 }
 
-                // Create campaign in Baserow with exact column names
+                // Create campaign data with exact column names
                 const campaignData = {
                     'Name': name,
                     'List': selectedListsData.map(list => list.name).join(', '),
@@ -99,17 +94,11 @@ const CampaignModal = ({ isOpen, onClose, onSubmit, lists = [], isLoading }) => 
                     'Facebook': selectedChannels.includes('facebook'),
                     'Twitter': selectedChannels.includes('twitter'),
                     'Tenant ID': tenantId,
-                    'Active': true
+                    'Active': campaign ? campaign.status === 'Active' : true
                 };
 
-                await baserowService.createCampaign(campaignData);
-
                 // Call onSubmit with the campaign data
-                onSubmit({
-                    name,
-                    lists: selectedLists,
-                    channels: selectedChannels
-                });
+                await onSubmit(campaignData, campaign?.id);
 
                 // Reset form
                 setName('');
@@ -118,102 +107,118 @@ const CampaignModal = ({ isOpen, onClose, onSubmit, lists = [], isLoading }) => 
                 setFormErrors({});
                 onClose();
             } catch (error) {
-                console.error('Error creating campaign:', error);
-                setFormErrors({ submit: 'Failed to create campaign. Please try again.' });
+                console.error('Error with campaign:', error);
+                setFormErrors({ submit: 'Failed to save campaign. Please try again.' });
             } finally {
                 setIsSubmitting(false);
             }
         }
     };
 
+    const handleChannelToggle = (channel) => {
+        setSelectedChannels(prev => {
+            if (prev.includes(channel)) {
+                return prev.filter(c => c !== channel);
+            } else {
+                return [...prev, channel];
+            }
+        });
+    };
+
+    const validateForm = () => {
+        const errors = {};
+
+        if (!name.trim()) {
+            errors.name = 'Campaign name is required';
+        }
+
+        if (selectedLists.length === 0) {
+            errors.lists = 'At least one list must be selected';
+        }
+
+        if (selectedChannels.length === 0) {
+            errors.channels = 'At least one channel must be selected';
+        }
+
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     return (
         <Dialog
             open={isOpen}
             onClose={onClose}
-            maxWidth="md"
+            maxWidth="sm"
             fullWidth
             PaperProps={{
                 sx: {
                     borderRadius: 2,
-                    maxHeight: '90vh'
+                    bgcolor: '#FFFFFF'
                 }
             }}
         >
-            <DialogTitle sx={{
-                borderBottom: '1px solid #E9D8FD',
-                background: 'linear-gradient(135deg, #F3E8FF 0%, #FFFFFF 100%)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-            }}>
-                <Typography variant="h6" sx={{ color: '#2D3748', fontWeight: 600 }}>
-                    Create New Campaign
+            <DialogTitle sx={{ pb: 1 }}>
+                <Typography variant="h5" component="div" sx={{ color: '#2D3748', fontWeight: 600 }}>
+                    {campaign ? 'Edit Campaign' : 'Create Campaign'}
                 </Typography>
-                <IconButton onClick={onClose} size="small">
-                    <CloseIcon />
-                </IconButton>
             </DialogTitle>
-
-            <DialogContent sx={{ py: 0 }}>
+            <DialogContent>
                 <Box sx={{ mt: 2 }}>
                     <TextField
                         fullWidth
                         label="Campaign Name"
                         value={name}
-                        onChange={(e) => {
-                            setName(e.target.value);
-                            setFormErrors({ ...formErrors, name: '' });
-                        }}
+                        onChange={(e) => setName(e.target.value)}
                         error={!!formErrors.name}
                         helperText={formErrors.name}
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 3 }}
                     />
 
-                    <FormControl fullWidth error={!!formErrors.lists}>
+                    <FormControl fullWidth error={!!formErrors.lists} sx={{ mb: 3 }}>
                         <InputLabel>Select Lists</InputLabel>
                         <Select
                             multiple
                             value={selectedLists}
-                            onChange={handleListChange}
+                            onChange={(e) => setSelectedLists(e.target.value)}
                             input={<OutlinedInput label="Select Lists" />}
                             renderValue={(selected) => (
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                    {selected.map((listId) => {
-                                        const list = lists.find(l => l.UUID === listId);
-                                        return (
+                                    {selected.map((value) => {
+                                        const list = lists.find(l => l.UUID === value);
+                                        return list ? (
                                             <Chip
-                                                key={listId}
-                                                label={list ? list.name : ''}
-                                                sx={{
-                                                    bgcolor: '#F3E8FF',
-                                                    color: '#6B46C1'
-                                                }}
+                                                key={value}
+                                                label={`${list.name} (${list.count})`}
+                                                size="small"
                                             />
-                                        );
+                                        ) : null;
                                     })}
                                 </Box>
                             )}
                             MenuProps={{
                                 PaperProps: {
                                     style: {
-                                        maxHeight: 300
+                                        maxHeight: 48 * 4.5 + 8,
+                                        width: 250
                                     }
                                 }
                             }}
                         >
                             {isLoading ? (
-                                <MenuItem disabled>Loading lists...</MenuItem>
+                                <MenuItem disabled>
+                                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                                    Loading lists...
+                                </MenuItem>
                             ) : lists.length === 0 ? (
                                 <MenuItem disabled>No lists available</MenuItem>
                             ) : (
                                 lists.map((list) => (
                                     <MenuItem key={list.UUID} value={list.UUID}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                                            <Typography>{list.name}</Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {list.count} prospects
-                                            </Typography>
-                                        </Box>
+                                        <Checkbox checked={selectedLists.indexOf(list.UUID) > -1} />
+                                        <ListItemText
+                                            primary={list.name}
+                                            secondary={`${list.count} prospects`}
+                                        />
                                     </MenuItem>
                                 ))
                             )}
@@ -222,91 +227,183 @@ const CampaignModal = ({ isOpen, onClose, onSubmit, lists = [], isLoading }) => 
                             <FormHelperText>{formErrors.lists}</FormHelperText>
                         )}
                     </FormControl>
-                </Box>
 
-                <Box sx={{ mt: 3 }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ color: '#2D3748', fontWeight: 500 }}>
-                        Select Channels
-                    </Typography>
-                    <Grid container spacing={2}>
-                        {CHANNELS.map((channel) => {
-                            const Icon = channel.icon;
-                            const isSelected = selectedChannels.includes(channel.id);
-                            return (
-                                <Grid item xs={6} key={channel.id}>
-                                    <Box
-                                        onClick={() => handleChannelClick(channel.id)}
-                                        onMouseEnter={() => setHoveredChannel(channel.id)}
-                                        onMouseLeave={() => setHoveredChannel(null)}
-                                        sx={{
-                                            p: 2,
-                                            border: 1,
-                                            borderColor: isSelected ? '#6B46C1' : '#E2E8F0',
-                                            borderRadius: 1,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            bgcolor: isSelected ? '#F3E8FF' : 'transparent',
-                                            position: 'relative',
-                                            '&:hover': {
-                                                borderColor: '#6B46C1',
-                                                bgcolor: '#F3E8FF'
-                                            }
-                                        }}
-                                    >
-                                        <Icon sx={{ color: channel.color, mr: 1 }} />
-                                        <Typography>{channel.name}</Typography>
-                                        {hoveredChannel === channel.id && (
-                                            <Box
-                                                sx={{
-                                                    position: 'absolute',
-                                                    bottom: '100%',
-                                                    left: 0,
-                                                    right: 0,
-                                                    bgcolor: 'rgba(0,0,0,0.8)',
-                                                    color: 'white',
-                                                    p: 1,
-                                                    borderRadius: 1,
-                                                    fontSize: '0.875rem',
-                                                    zIndex: 1,
-                                                    mt: -1
-                                                }}
-                                            >
-                                                {channel.description}
-                                            </Box>
-                                        )}
-                                    </Box>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
-                    {formErrors.channels && (
-                        <FormHelperText error>{formErrors.channels}</FormHelperText>
-                    )}
+                    <FormControl error={!!formErrors.channels} component="fieldset" sx={{ width: '100%' }}>
+                        <Typography variant="subtitle1" color="primary" sx={{ mb: 2 }}>
+                            Channels
+                        </Typography>
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <Box
+                                    onClick={() => handleChannelToggle('email')}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        p: 2,
+                                        border: 1,
+                                        borderColor: selectedChannels.includes('email') ? 'primary.main' : 'grey.300',
+                                        borderRadius: 1,
+                                        cursor: 'pointer',
+                                        bgcolor: selectedChannels.includes('email') ? 'primary.50' : 'transparent',
+                                        '&:hover': {
+                                            bgcolor: 'primary.50',
+                                            borderColor: 'primary.main'
+                                        }
+                                    }}
+                                >
+                                    <EmailIcon sx={{ color: '#1976d2' }} />
+                                    <Typography>Email</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box
+                                    onClick={() => handleChannelToggle('phone')}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        p: 2,
+                                        border: 1,
+                                        borderColor: selectedChannels.includes('phone') ? 'primary.main' : 'grey.300',
+                                        borderRadius: 1,
+                                        cursor: 'pointer',
+                                        bgcolor: selectedChannels.includes('phone') ? 'primary.50' : 'transparent',
+                                        '&:hover': {
+                                            bgcolor: 'primary.50',
+                                            borderColor: 'primary.main'
+                                        }
+                                    }}
+                                >
+                                    <PhoneIcon sx={{ color: '#2e7d32' }} />
+                                    <Typography>Phone</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box
+                                    onClick={() => handleChannelToggle('linkedin')}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        p: 2,
+                                        border: 1,
+                                        borderColor: selectedChannels.includes('linkedin') ? 'primary.main' : 'grey.300',
+                                        borderRadius: 1,
+                                        cursor: 'pointer',
+                                        bgcolor: selectedChannels.includes('linkedin') ? 'primary.50' : 'transparent',
+                                        '&:hover': {
+                                            bgcolor: 'primary.50',
+                                            borderColor: 'primary.main'
+                                        }
+                                    }}
+                                >
+                                    <LinkedInIcon sx={{ color: '#0077b5' }} />
+                                    <Typography>LinkedIn</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box
+                                    onClick={() => handleChannelToggle('instagram')}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        p: 2,
+                                        border: 1,
+                                        borderColor: selectedChannels.includes('instagram') ? 'primary.main' : 'grey.300',
+                                        borderRadius: 1,
+                                        cursor: 'pointer',
+                                        bgcolor: selectedChannels.includes('instagram') ? 'primary.50' : 'transparent',
+                                        '&:hover': {
+                                            bgcolor: 'primary.50',
+                                            borderColor: 'primary.main'
+                                        }
+                                    }}
+                                >
+                                    <InstagramIcon sx={{ color: '#e4405f' }} />
+                                    <Typography>Instagram</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box
+                                    onClick={() => handleChannelToggle('facebook')}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        p: 2,
+                                        border: 1,
+                                        borderColor: selectedChannels.includes('facebook') ? 'primary.main' : 'grey.300',
+                                        borderRadius: 1,
+                                        cursor: 'pointer',
+                                        bgcolor: selectedChannels.includes('facebook') ? 'primary.50' : 'transparent',
+                                        '&:hover': {
+                                            bgcolor: 'primary.50',
+                                            borderColor: 'primary.main'
+                                        }
+                                    }}
+                                >
+                                    <FacebookIcon sx={{ color: '#1877f2' }} />
+                                    <Typography>Facebook</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box
+                                    onClick={() => handleChannelToggle('twitter')}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        p: 2,
+                                        border: 1,
+                                        borderColor: selectedChannels.includes('twitter') ? 'primary.main' : 'grey.300',
+                                        borderRadius: 1,
+                                        cursor: 'pointer',
+                                        bgcolor: selectedChannels.includes('twitter') ? 'primary.50' : 'transparent',
+                                        '&:hover': {
+                                            bgcolor: 'primary.50',
+                                            borderColor: 'primary.main'
+                                        }
+                                    }}
+                                >
+                                    <TwitterIcon sx={{ color: '#000000' }} />
+                                    <Typography>X (Twitter)</Typography>
+                                </Box>
+                            </Grid>
+                        </Grid>
+                        {formErrors.channels && (
+                            <FormHelperText sx={{ mt: 1 }}>{formErrors.channels}</FormHelperText>
+                        )}
+                    </FormControl>
+
                     {formErrors.submit && (
-                        <FormHelperText error sx={{ mt: 2, textAlign: 'center' }}>
+                        <Alert severity="error" sx={{ mt: 2 }}>
                             {formErrors.submit}
-                        </FormHelperText>
+                        </Alert>
                     )}
                 </Box>
             </DialogContent>
-
-            <DialogActions sx={{ p: 2, borderTop: '1px solid #E9D8FD', bgcolor: '#F8F9FA' }}>
+            <DialogActions sx={{ p: 3 }}>
                 <Button onClick={onClose} sx={{ color: '#4A5568' }}>
                     Cancel
                 </Button>
                 <Button
-                    onClick={handleSubmit}
                     variant="contained"
+                    onClick={handleSubmit}
                     disabled={isSubmitting}
                     sx={{
                         bgcolor: '#6B46C1',
-                        '&:hover': {
-                            bgcolor: '#553C9A'
-                        }
+                        '&:hover': { bgcolor: '#553C9A' }
                     }}
                 >
-                    {isSubmitting ? 'Creating...' : 'Create Campaign'}
+                    {isSubmitting ? (
+                        <CircularProgress size={24} sx={{ color: 'white' }} />
+                    ) : campaign ? (
+                        'Save Changes'
+                    ) : (
+                        'Create Campaign'
+                    )}
                 </Button>
             </DialogActions>
         </Dialog>

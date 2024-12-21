@@ -23,9 +23,11 @@ import {
     Archive as ArchiveIcon,
     Unarchive as UnarchiveIcon,
     PlayArrow as PlayArrowIcon,
-    Stop as StopIcon
+    Stop as StopIcon,
+    Edit as EditIcon
 } from '@mui/icons-material';
 import baserowService from '../../services/baserow.service';
+import CampaignModal from '../CampaignModal';
 
 const CampaignDetails = () => {
     const { uuid } = useParams();
@@ -33,10 +35,57 @@ const CampaignDetails = () => {
     const [campaign, setCampaign] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [lists, setLists] = useState([]);
+    const [isLoadingLists, setIsLoadingLists] = useState(false);
 
     useEffect(() => {
         fetchCampaignDetails();
+        fetchLists();
     }, [uuid]);
+
+    const fetchLists = async () => {
+        setIsLoadingLists(true);
+        try {
+            const tenantId = localStorage.getItem('tenantId');
+            if (!tenantId) {
+                throw new Error('No tenant ID found');
+            }
+
+            const response = await baserowService.getLists({
+                filters: {
+                    'Tenant ID': tenantId,
+                    'Active': true
+                }
+            });
+
+            // Get contacts count for each list
+            const listsWithCounts = await Promise.all(
+                response.results.map(async (list) => {
+                    const contactsResponse = await baserowService.getContacts({
+                        filters: {
+                            'Tenant ID': tenantId,
+                            'List Name': list.Name
+                        }
+                    });
+
+                    return {
+                        UUID: list.UUID,
+                        id: list.id,
+                        name: list.Name,
+                        tags: list.Tags || '',
+                        count: contactsResponse.count || 0
+                    };
+                })
+            );
+
+            setLists(listsWithCounts);
+        } catch (error) {
+            console.error('Error fetching lists:', error);
+        } finally {
+            setIsLoadingLists(false);
+        }
+    };
 
     const fetchCampaignDetails = async () => {
         setIsLoading(true);
@@ -88,14 +137,14 @@ const CampaignDetails = () => {
                 status: campaignData.Active ? 'Active' : 'Inactive',
                 list: campaignData.List || '',
                 listId: campaignData['List ID'] || '',
-                channels: {
-                    email: campaignData.Email || false,
-                    phone: campaignData.Phone || false,
-                    linkedin: campaignData.Linkedin || false,
-                    instagram: campaignData.Instagram || false,
-                    facebook: campaignData.Facebook || false,
-                    twitter: campaignData.Twitter || false
-                },
+                channels: [
+                    campaignData.Email && 'email',
+                    campaignData.Phone && 'phone',
+                    campaignData.Linkedin && 'linkedin',
+                    campaignData.Instagram && 'instagram',
+                    campaignData.Facebook && 'facebook',
+                    campaignData.Twitter && 'twitter'
+                ].filter(Boolean),
                 createdAt: campaignData['Created On'] ? new Date(campaignData['Created On']).toLocaleDateString() : 'N/A',
                 metrics: {
                     totalProspects,
@@ -148,6 +197,22 @@ const CampaignDetails = () => {
         }
     };
 
+    const handleEditSubmit = async (campaignData, id) => {
+        try {
+            // Preserve the campaign's current status
+            const updatedData = {
+                ...campaignData,
+                'Active': campaign.status === 'Active'
+            };
+            await baserowService.updateCampaign(id, updatedData);
+            await fetchCampaignDetails();
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error('Error updating campaign:', error);
+            throw error;
+        }
+    };
+
     if (isLoading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -189,6 +254,14 @@ const CampaignDetails = () => {
                     </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button
+                        variant="outlined"
+                        startIcon={<EditIcon />}
+                        onClick={() => setIsModalOpen(true)}
+                        sx={{ borderColor: '#E9D8FD', color: '#6B46C1' }}
+                    >
+                        Edit Campaign
+                    </Button>
                     <Button
                         variant="outlined"
                         startIcon={campaign.status === 'Active' ? <ArchiveIcon /> : <UnarchiveIcon />}
@@ -239,20 +312,18 @@ const CampaignDetails = () => {
                                     Active Channels
                                 </Typography>
                                 <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                                    {Object.entries(campaign.channels)
-                                        .filter(([_, isActive]) => isActive)
-                                        .map(([channel]) => (
-                                            <IconButton
-                                                key={channel}
-                                                size="small"
-                                                sx={{
-                                                    bgcolor: '#F3E8FF',
-                                                    '&:hover': { bgcolor: '#E9D8FD' }
-                                                }}
-                                            >
-                                                {getChannelIcon(channel)}
-                                            </IconButton>
-                                        ))}
+                                    {campaign.channels.map((channel) => (
+                                        <IconButton
+                                            key={channel}
+                                            size="small"
+                                            sx={{
+                                                bgcolor: '#F3E8FF',
+                                                '&:hover': { bgcolor: '#E9D8FD' }
+                                            }}
+                                        >
+                                            {getChannelIcon(channel)}
+                                        </IconButton>
+                                    ))}
                                 </Stack>
                             </Grid>
                         </Grid>
@@ -310,6 +381,15 @@ const CampaignDetails = () => {
                     No recent activity to show.
                 </Typography>
             </Paper>
+
+            <CampaignModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSubmit={handleEditSubmit}
+                lists={lists}
+                isLoading={isLoadingLists}
+                campaign={campaign}
+            />
         </Box>
     );
 };
