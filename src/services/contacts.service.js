@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5001/api/lists';
+const API_URL = 'http://localhost:5001/api/contacts';
 
 // Create an axios instance with default config
 const api = axios.create({
@@ -24,62 +24,52 @@ api.interceptors.request.use(
     }
 );
 
-export const getLists = async () => {
+export const getContacts = async () => {
     try {
         const response = await api.get('');
         return response.data;
     } catch (error) {
-        console.error('Error fetching lists:', error);
+        console.error('Error fetching contacts:', error);
         throw error;
     }
 };
 
-export const createList = async (listData) => {
+export const createContact = async (contactData) => {
     try {
-        const response = await api.post('', listData);
+        const response = await api.post('', contactData);
         return response.data;
     } catch (error) {
-        console.error('Error creating list:', error);
+        console.error('Error creating contact:', error);
         throw error;
     }
 };
 
-export const updateList = async (id, listData) => {
+export const updateContact = async (id, contactData) => {
     try {
-        const response = await api.put(`/${id}`, listData);
+        const response = await api.put(`/${id}`, contactData);
         return response.data;
     } catch (error) {
-        console.error('Error updating list:', error);
+        console.error('Error updating contact:', error);
         throw error;
     }
 };
 
-export const deleteList = async (id) => {
+export const deleteContact = async (id) => {
     try {
         const response = await api.delete(`/${id}`);
         return response.data;
     } catch (error) {
-        console.error('Error deleting list:', error);
+        console.error('Error deleting contact:', error);
         throw error;
     }
 };
 
-export const getListById = async (listId) => {
+export const getContactById = async (contactId) => {
     try {
-        const response = await axios.get(`${API_URL}/lists/${listId}`);
+        const response = await axios.get(`${API_URL}/contacts/${contactId}`);
         return response.data;
     } catch (error) {
-        console.error('Error fetching list:', error);
-        throw error;
-    }
-};
-
-export const addProspectsToList = async (listId, prospects) => {
-    try {
-        const response = await axios.post(`${API_URL}/lists/${listId}/prospects`, { prospects });
-        return response.data;
-    } catch (error) {
-        console.error('Error adding prospects to list:', error);
+        console.error('Error fetching contact:', error);
         throw error;
     }
 }; 

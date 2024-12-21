@@ -1,88 +1,49 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Typography,
-    Tabs,
-    Tab,
     Paper,
-    Chip,
-    IconButton,
-    Stack,
     Button,
+    IconButton,
+    Chip,
+    Grid,
     CircularProgress,
-    Menu,
-    MenuItem,
-    ListItemIcon,
-    ListItemText
+    Stack
 } from '@mui/material';
-import { Link, useNavigate } from 'react-router-dom';
-import EmailIcon from '@mui/icons-material/Email';
-import PhoneIcon from '@mui/icons-material/Phone';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
-import FacebookIcon from '@mui/icons-material/Facebook';
-import InstagramIcon from '@mui/icons-material/Instagram';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AddIcon from '@mui/icons-material/Add';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import ArchiveIcon from '@mui/icons-material/Archive';
-import UnarchiveIcon from '@mui/icons-material/Unarchive';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import CampaignModal from '../CampaignModal';
-import baserowService from '../../services/baserow.service';
+import {
+    Add as AddIcon,
+    Email as EmailIcon,
+    Phone as PhoneIcon,
+    LinkedIn as LinkedInIcon,
+    Instagram as InstagramIcon,
+    Facebook as FacebookIcon,
+    Twitter as TwitterIcon,
+    MoreVert as MoreVertIcon
+} from '@mui/icons-material';
+import { getCampaigns, createCampaign } from '../../services/campaigns.service';
+import { getLists } from '../../services/lists.service';
+import CampaignModal from './CampaignModal';
 
 const Campaigns = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState(0);
+    const [campaigns, setCampaigns] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [lists, setLists] = useState([]);
-    const [campaigns, setCampaigns] = useState([]);
     const [isLoadingLists, setIsLoadingLists] = useState(false);
-    const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
-    const [anchorEl, setAnchorEl] = useState(null);
-    const [selectedCampaign, setSelectedCampaign] = useState(null);
 
     useEffect(() => {
-        fetchLists();
         fetchCampaigns();
+        fetchLists();
     }, []);
 
     const fetchLists = async () => {
         setIsLoadingLists(true);
         try {
-            const tenantId = localStorage.getItem('tenantId');
-            if (!tenantId) {
-                throw new Error('No tenant ID found');
-            }
-
-            const response = await baserowService.getLists({
-                filters: {
-                    'Tenant ID': tenantId,
-                    'Active': true
-                }
-            });
-
-            // Get contacts count for each list
-            const listsWithCounts = await Promise.all(
-                response.results.map(async (list) => {
-                    const contactsResponse = await baserowService.getContacts({
-                        filters: {
-                            'Tenant ID': tenantId,
-                            'List Name': list.Name
-                        }
-                    });
-
-                    return {
-                        UUID: list.UUID,
-                        id: list.id,
-                        name: list.Name,
-                        tags: list.Tags || '',
-                        count: contactsResponse.count || 0
-                    };
-                })
-            );
-
-            setLists(listsWithCounts);
+            const fetchedLists = await getLists();
+            setLists(fetchedLists);
         } catch (error) {
             console.error('Error fetching lists:', error);
         } finally {
@@ -91,197 +52,139 @@ const Campaigns = () => {
     };
 
     const fetchCampaigns = async () => {
-        setIsLoadingCampaigns(true);
+        setIsLoading(true);
         try {
-            const tenantId = localStorage.getItem('tenantId');
-            if (!tenantId) {
-                throw new Error('No tenant ID found');
-            }
-
-            const response = await baserowService.getCampaigns({
-                filters: {
-                    'Tenant ID': tenantId
-                }
-            });
-
-            const formattedCampaigns = response.results.map(campaign => ({
+            const campaignsData = await getCampaigns();
+            const formattedCampaigns = campaignsData.map(campaign => ({
                 id: campaign.id,
-                uuid: campaign.UUID,
-                name: campaign.Name,
-                status: campaign.Active ? 'Active' : 'Inactive',
-                list: campaign.List,
-                listId: campaign['List ID'],
-                channels: [
-                    campaign.Email && 'email',
-                    campaign.Phone && 'phone',
-                    campaign.Linkedin && 'linkedin',
-                    campaign.Instagram && 'instagram',
-                    campaign.Facebook && 'facebook',
-                    campaign.Twitter && 'twitter'
-                ].filter(Boolean)
+                uuid: campaign.uuid,
+                name: campaign.name,
+                status: campaign.status,
+                list: campaign.list,
+                listId: campaign.listId,
+                channels: campaign.channels ? campaign.channels.split(',') : [],
+                createdAt: new Date(campaign.createdAt).toLocaleDateString(),
+                metrics: {
+                    totalProspects: 0,
+                    contacted: 0,
+                    responded: 0,
+                    meetings: 0
+                }
             }));
-
             setCampaigns(formattedCampaigns);
         } catch (error) {
             console.error('Error fetching campaigns:', error);
+            setError(error.message);
         } finally {
-            setIsLoadingCampaigns(false);
+            setIsLoading(false);
         }
     };
 
-    const handleTabChange = (event, newValue) => {
-        setActiveTab(newValue);
-    };
-
     const handleCreateCampaign = async (campaignData) => {
-        console.log('Creating campaign:', campaignData);
-        setIsModalOpen(false);
-        // Refresh campaigns after creation
-        await fetchCampaigns();
+        try {
+            await createCampaign(campaignData);
+            await fetchCampaigns();
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error('Error creating campaign:', error);
+            throw error;
+        }
     };
 
     const getChannelIcon = (channel) => {
+        const iconProps = { sx: { fontSize: 20 } };
         switch (channel) {
             case 'email':
-                return <EmailIcon sx={{ color: '#1976d2' }} />;
+                return <EmailIcon {...iconProps} sx={{ color: '#1976d2' }} />;
             case 'phone':
-                return <PhoneIcon sx={{ color: '#2e7d32' }} />;
+                return <PhoneIcon {...iconProps} sx={{ color: '#2e7d32' }} />;
             case 'linkedin':
-                return <LinkedInIcon sx={{ color: '#0077b5' }} />;
+                return <LinkedInIcon {...iconProps} sx={{ color: '#0077b5' }} />;
             case 'instagram':
-                return <InstagramIcon sx={{ color: '#e4405f' }} />;
+                return <InstagramIcon {...iconProps} sx={{ color: '#e4405f' }} />;
             case 'facebook':
-                return <FacebookIcon sx={{ color: '#1877f2' }} />;
+                return <FacebookIcon {...iconProps} sx={{ color: '#1877f2' }} />;
             case 'twitter':
-                return <TwitterIcon sx={{ color: '#000000' }} />;
+                return <TwitterIcon {...iconProps} sx={{ color: '#000000' }} />;
             default:
                 return null;
         }
     };
 
-    const filteredCampaigns = campaigns.filter(campaign =>
-        activeTab === 0 ? campaign.status === 'Active' : campaign.status === 'Inactive'
-    );
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
 
-    const handleMenuOpen = (event, campaign) => {
-        event.stopPropagation();
-        setAnchorEl(event.currentTarget);
-        setSelectedCampaign(campaign);
-    };
-
-    const handleMenuClose = () => {
-        setAnchorEl(null);
-        setSelectedCampaign(null);
-    };
-
-    const handleCampaignClick = (campaign) => {
-        navigate(`/outreach-portal/campaigns/campaign/${campaign.uuid}`);
-    };
-
-    const handleArchiveToggle = async () => {
-        if (!selectedCampaign) return;
-
-        try {
-            await baserowService.updateCampaign(selectedCampaign.id, {
-                'Active': selectedCampaign.status === 'Inactive'
-            });
-            await fetchCampaigns();
-        } catch (error) {
-            console.error('Error updating campaign:', error);
-        }
-        handleMenuClose();
-    };
+    if (error) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Typography color="error" variant="h6">
+                    {error}
+                </Typography>
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{ p: 3 }}>
+            {/* Header */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Link to="/outreach-portal" style={{ textDecoration: 'none' }}>
-                        <IconButton>
-                            <ArrowBackIcon />
-                        </IconButton>
-                    </Link>
-                    <Typography variant="h4" sx={{ color: '#2D3748', fontWeight: 600 }}>
-                        Campaigns
-                    </Typography>
-                </Box>
+                <Typography variant="h4" sx={{ color: '#2D3748', fontWeight: 600 }}>
+                    Campaigns
+                </Typography>
                 <Button
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={() => setIsModalOpen(true)}
-                    sx={{
-                        bgcolor: '#6B46C1',
-                        '&:hover': { bgcolor: '#553C9A' }
-                    }}
+                    sx={{ bgcolor: '#6B46C1', '&:hover': { bgcolor: '#553C9A' } }}
                 >
-                    CREATE CAMPAIGN
+                    Create Campaign
                 </Button>
             </Box>
 
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-                <Tabs value={activeTab} onChange={handleTabChange}>
-                    <Tab label="Active Campaigns" />
-                    <Tab label="Past Campaigns" />
-                </Tabs>
-            </Box>
-
-            {isLoadingCampaigns ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                    <CircularProgress />
-                </Box>
-            ) : filteredCampaigns.length === 0 ? (
-                <Paper sx={{ p: 4, textAlign: 'center', bgcolor: '#F8F9FA' }}>
-                    <Typography color="textSecondary">
-                        No {activeTab === 0 ? 'active' : 'past'} campaigns found
-                    </Typography>
-                </Paper>
-            ) : (
-                <Stack spacing={2}>
-                    {filteredCampaigns.map((campaign) => (
+            {/* Campaign Grid */}
+            <Grid container spacing={3}>
+                {campaigns.map((campaign) => (
+                    <Grid item xs={12} md={6} lg={4} key={campaign.id}>
                         <Paper
-                            key={campaign.id}
-                            onClick={() => handleCampaignClick(campaign)}
                             sx={{
                                 p: 3,
                                 borderRadius: 2,
                                 border: '1px solid #E9D8FD',
                                 cursor: 'pointer',
-                                '&:hover': {
-                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                                    bgcolor: '#FAFAFA'
-                                }
+                                '&:hover': { boxShadow: 3 }
                             }}
+                            onClick={() => navigate(`/outreach-portal/campaigns/${campaign.uuid}`)}
                         >
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                                 <Box>
                                     <Typography variant="h6" sx={{ color: '#2D3748', mb: 1 }}>
                                         {campaign.name}
                                     </Typography>
-                                    <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                                        List: {campaign.list}
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <Chip
                                         label={campaign.status}
-                                        color={campaign.status === 'Active' ? 'success' : 'default'}
+                                        color={campaign.status === 'active' ? 'success' : 'default'}
                                         size="small"
                                     />
-                                    <IconButton
-                                        size="small"
-                                        onClick={(e) => handleMenuOpen(e, campaign)}
-                                        sx={{ ml: 1 }}
-                                    >
-                                        <MoreVertIcon />
-                                    </IconButton>
                                 </Box>
+                                <IconButton size="small">
+                                    <MoreVertIcon />
+                                </IconButton>
                             </Box>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
+
+                            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                                List: {campaign.list}
+                            </Typography>
+
+                            <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
                                 {campaign.channels.map((channel) => (
                                     <IconButton
                                         key={channel}
                                         size="small"
-                                        onClick={(e) => e.stopPropagation()}
                                         sx={{
                                             bgcolor: '#F3E8FF',
                                             '&:hover': { bgcolor: '#E9D8FD' }
@@ -290,43 +193,33 @@ const Campaigns = () => {
                                         {getChannelIcon(channel)}
                                     </IconButton>
                                 ))}
-                            </Box>
-                        </Paper>
-                    ))}
-                </Stack>
-            )}
+                            </Stack>
 
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <MenuItem onClick={() => {
-                    handleMenuClose();
-                    selectedCampaign && handleCampaignClick(selectedCampaign);
-                }}>
-                    <ListItemIcon>
-                        <OpenInNewIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>View Details</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={handleArchiveToggle}>
-                    <ListItemIcon>
-                        {selectedCampaign?.status === 'Active' ? (
-                            <ArchiveIcon fontSize="small" />
-                        ) : (
-                            <UnarchiveIcon fontSize="small" />
-                        )}
-                    </ListItemIcon>
-                    <ListItemText>
-                        {selectedCampaign?.status === 'Active' ? 'Archive Campaign' : 'Reactivate Campaign'}
-                    </ListItemText>
-                </MenuItem>
-            </Menu>
+                            <Grid container spacing={2}>
+                                <Grid item xs={6}>
+                                    <Typography variant="caption" color="textSecondary">
+                                        Total Prospects
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ color: '#6B46C1' }}>
+                                        {campaign.metrics.totalProspects}
+                                    </Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="caption" color="textSecondary">
+                                        Contacted
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ color: '#6B46C1' }}>
+                                        {campaign.metrics.contacted}
+                                    </Typography>
+                                </Grid>
+                            </Grid>
+                        </Paper>
+                    </Grid>
+                ))}
+            </Grid>
 
             <CampaignModal
-                isOpen={isModalOpen}
+                open={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={handleCreateCampaign}
                 lists={lists}

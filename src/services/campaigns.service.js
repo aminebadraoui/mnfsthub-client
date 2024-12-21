@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5001/api/lists';
+const API_URL = 'http://localhost:5001/api/campaigns';
 
 // Create an axios instance with default config
 const api = axios.create({
@@ -24,62 +24,52 @@ api.interceptors.request.use(
     }
 );
 
-export const getLists = async () => {
+export const getCampaigns = async () => {
     try {
         const response = await api.get('');
         return response.data;
     } catch (error) {
-        console.error('Error fetching lists:', error);
+        console.error('Error fetching campaigns:', error);
         throw error;
     }
 };
 
-export const createList = async (listData) => {
+export const createCampaign = async (campaignData) => {
     try {
-        const response = await api.post('', listData);
+        const response = await api.post('', campaignData);
         return response.data;
     } catch (error) {
-        console.error('Error creating list:', error);
+        console.error('Error creating campaign:', error);
         throw error;
     }
 };
 
-export const updateList = async (id, listData) => {
+export const updateCampaign = async (id, campaignData) => {
     try {
-        const response = await api.put(`/${id}`, listData);
+        const response = await api.put(`/${id}`, campaignData);
         return response.data;
     } catch (error) {
-        console.error('Error updating list:', error);
+        console.error('Error updating campaign:', error);
         throw error;
     }
 };
 
-export const deleteList = async (id) => {
+export const deleteCampaign = async (id) => {
     try {
         const response = await api.delete(`/${id}`);
         return response.data;
     } catch (error) {
-        console.error('Error deleting list:', error);
+        console.error('Error deleting campaign:', error);
         throw error;
     }
 };
 
-export const getListById = async (listId) => {
+export const getCampaignById = async (campaignId) => {
     try {
-        const response = await axios.get(`${API_URL}/lists/${listId}`);
+        const response = await axios.get(`${API_URL}/campaigns/${campaignId}`);
         return response.data;
     } catch (error) {
-        console.error('Error fetching list:', error);
-        throw error;
-    }
-};
-
-export const addProspectsToList = async (listId, prospects) => {
-    try {
-        const response = await axios.post(`${API_URL}/lists/${listId}/prospects`, { prospects });
-        return response.data;
-    } catch (error) {
-        console.error('Error adding prospects to list:', error);
+        console.error('Error fetching campaign:', error);
         throw error;
     }
 }; 

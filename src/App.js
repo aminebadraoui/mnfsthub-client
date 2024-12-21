@@ -1,80 +1,70 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { ChakraProvider, Box, Flex } from '@chakra-ui/react';
+import theme from './theme';
 import SignIn from './components/Auth/SignIn';
 import SignUp from './components/Auth/SignUp';
-import Dashboard from './components/Dashboard';
-import Lists from './components/Lists/Lists';
-import Campaigns from './components/Campaigns/Campaigns';
-import KnowledgeBase from './components/KnowledgeBase';
+import Dashboard from './components/dashboard/Dashboard';
+import Navigation from './components/layout/Navigation/Navigation';
 import OutreachPortal from './components/OutreachPortal';
-import CampaignDetails from './components/Campaigns/CampaignDetails';
-import ContactsTable from './components/Lists/ContactsTable';
-import { Box, Container } from '@mui/material';
-import Navigation from './components/Navigation/Navigation';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import useAuthStore from './stores/authStore';
+import Profile from './components/Profile/Profile';
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = '240px';
 
-const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const tenantId = localStorage.getItem('tenantId');
-
-  if (!token || !tenantId) {
-    return <Navigate to="/signin" replace />;
-  }
-
-  return children;
-};
-
-const MainLayout = ({ children }) => (
-  <Box sx={{
-    display: 'flex',
-    minHeight: '100vh',
-    bgcolor: '#fff'
-  }}>
-    <Navigation />
-    <Box
-      component="main"
-      sx={{
-        width: `100%`,
-        display: 'flex',
-        flexDirection: 'column',
-        p: '32px'
-      }}
-    >
-      {children}
-    </Box>
-  </Box>
-);
-
-const App = () => {
+const DashboardLayout = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/*" element={
-          <ProtectedRoute>
-            <MainLayout>
-              <Routes>
-                <Route index element={<Dashboard />} />
-                <Route path="outreach-portal" element={<OutreachPortal />} />
-                <Route path="outreach-portal/lists/*" element={<Lists />} />
-                <Route path="outreach-portal/lists/:listId" element={<ContactsTable />} />
-                <Route path="outreach-portal/campaigns/*" element={<Campaigns />} />
-                <Route path="outreach-portal/campaigns/campaign/:uuid" element={<CampaignDetails />} />
-                <Route path="marketing-portal" element={<div>Marketing Portal</div>} />
-                <Route path="sales-portal" element={<div>Sales Portal</div>} />
-                <Route path="cx-portal" element={<div>Customer Experience Portal</div>} />
-                <Route path="knowledge-base" element={<KnowledgeBase />} />
-                <Route path="profile" element={<div>Profile</div>} />
-                <Route path="logout" element={<Navigate to="/signin" replace />} />
-              </Routes>
-            </MainLayout>
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </BrowserRouter>
+    <Flex h="100vh" overflow="hidden">
+      {/* Sidebar */}
+      <Box w={DRAWER_WIDTH} h="100vh" position="fixed" top="0" left="0">
+        <Navigation />
+      </Box>
+
+      {/* Main Content */}
+      <Box
+        ml={DRAWER_WIDTH}
+        w={`calc(100% - ${DRAWER_WIDTH})`}
+        h="100vh"
+        overflow="auto"
+        bg="gray.50"
+        _dark={{ bg: 'gray.900' }}
+        p={6}
+      >
+        <Outlet />
+      </Box>
+    </Flex>
   );
 };
+
+function App() {
+  const { init } = useAuthStore();
+
+  useEffect(() => {
+    init();
+  }, [init]);
+
+  return (
+    <ChakraProvider theme={theme}>
+      <Router>
+        <Routes>
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
+
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/outreach-portal/*" element={<OutreachPortal />} />
+            <Route path="/marketing-portal" element={<Box>Marketing Portal (Coming Soon)</Box>} />
+            <Route path="/sales-portal" element={<Box>Sales Portal (Coming Soon)</Box>} />
+            <Route path="/cx-portal" element={<Box>Customer Experience Portal (Coming Soon)</Box>} />
+            <Route path="/knowledge-base" element={<Box>Knowledge Base (Coming Soon)</Box>} />
+            <Route path="/profile" element={<Profile />} />
+          </Route>
+        </Routes>
+      </Router>
+    </ChakraProvider>
+  );
+}
 
 export default App;

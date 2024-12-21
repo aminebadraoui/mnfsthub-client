@@ -5,7 +5,7 @@ const N8N_CAMPAIGNS_WEBHOOK = 'https://mnfst-n8n.mnfstagency.com/webhook/outreac
 const checkTenantId = () => {
     const tenantId = localStorage.getItem('tenantId');
     if (!tenantId) {
-        throw new Error('Tenant ID not found. Please sign in again.');
+        throw new Error('Tenant_ID not found. Please sign in again.');
     }
     return tenantId;
 };

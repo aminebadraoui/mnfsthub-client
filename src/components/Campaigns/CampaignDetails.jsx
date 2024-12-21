@@ -26,8 +26,10 @@ import {
     Stop as StopIcon,
     Edit as EditIcon
 } from '@mui/icons-material';
-import baserowService from '../../services/baserow.service';
-import CampaignModal from '../CampaignModal';
+import { getCampaignById, updateCampaign } from '../../services/campaigns.service';
+import { getLists } from '../../services/lists.service';
+import { getContacts } from '../../services/contacts.service';
+import CampaignModal from './CampaignModal';
 
 const CampaignDetails = () => {
     const { uuid } = useParams();
@@ -47,39 +49,8 @@ const CampaignDetails = () => {
     const fetchLists = async () => {
         setIsLoadingLists(true);
         try {
-            const tenantId = localStorage.getItem('tenantId');
-            if (!tenantId) {
-                throw new Error('No tenant ID found');
-            }
-
-            const response = await baserowService.getLists({
-                filters: {
-                    'Tenant ID': tenantId,
-                    'Active': true
-                }
-            });
-
-            // Get contacts count for each list
-            const listsWithCounts = await Promise.all(
-                response.results.map(async (list) => {
-                    const contactsResponse = await baserowService.getContacts({
-                        filters: {
-                            'Tenant ID': tenantId,
-                            'List Name': list.Name
-                        }
-                    });
-
-                    return {
-                        UUID: list.UUID,
-                        id: list.id,
-                        name: list.Name,
-                        tags: list.Tags || '',
-                        count: contactsResponse.count || 0
-                    };
-                })
-            );
-
-            setLists(listsWithCounts);
+            const fetchedLists = await getLists();
+            setLists(fetchedLists);
         } catch (error) {
             console.error('Error fetching lists:', error);
         } finally {
@@ -90,71 +61,32 @@ const CampaignDetails = () => {
     const fetchCampaignDetails = async () => {
         setIsLoading(true);
         try {
-            const tenantId = localStorage.getItem('tenantId');
-            if (!tenantId) {
-                throw new Error('No tenant ID found');
-            }
-
-            // Fetch campaign data
-            const response = await baserowService.getCampaigns({
-                filters: {
-                    'Tenant ID': tenantId
-                }
-            });
-
-            console.log('Campaign response:', response);
-
-            // Find the specific campaign by UUID
-            console.log('UUID:', uuid);
-            const campaignData = response.results.find(campaign => campaign.UUID === uuid);
+            const campaignData = await getCampaignById(uuid);
             if (!campaignData) {
                 throw new Error('Campaign not found');
             }
 
-            console.log('Campaign data:', campaignData);
-
-            // Fetch list prospects count
-            const listIds = campaignData['List ID']?.split(', ') || [];
-            const listNames = campaignData.List?.split(', ') || [];
-            let totalProspects = 0;
-
-            // Get prospects count for each list
-            for (const listName of listNames) {
-                const contactsResponse = await baserowService.getContacts({
-                    filters: {
-                        'Tenant ID': tenantId,
-                        'List Name': listName
-                    }
-                });
-                console.log(`Contacts for list ${listName}:`, contactsResponse);
-                totalProspects += contactsResponse.count || 0;
-            }
+            // Get contacts count for the campaign's list
+            const contacts = await getContacts({ listId: campaignData.listId });
+            const totalProspects = contacts.length;
 
             const formattedCampaign = {
                 id: campaignData.id,
-                uuid: campaignData.UUID,
-                name: campaignData.Name,
-                status: campaignData.Active ? 'Active' : 'Inactive',
-                list: campaignData.List || '',
-                listId: campaignData['List ID'] || '',
-                channels: [
-                    campaignData.Email && 'email',
-                    campaignData.Phone && 'phone',
-                    campaignData.Linkedin && 'linkedin',
-                    campaignData.Instagram && 'instagram',
-                    campaignData.Facebook && 'facebook',
-                    campaignData.Twitter && 'twitter'
-                ].filter(Boolean),
-                createdAt: campaignData['Created On'] ? new Date(campaignData['Created On']).toLocaleDateString() : 'N/A',
+                uuid: campaignData.uuid,
+                name: campaignData.name,
+                status: campaignData.status,
+                list: campaignData.list,
+                listId: campaignData.listId,
+                channels: campaignData.channels ? campaignData.channels.split(',') : [],
+                createdAt: new Date(campaignData.createdAt).toLocaleDateString(),
                 metrics: {
                     totalProspects,
-                    contacted: campaignData.Contacted || 0,
-                    responded: campaignData.Responded || 0,
-                    meetings: campaignData.Meetings || 0
+                    contacted: 0,
+                    responded: 0,
+                    meetings: 0
                 }
             };
 
-            console.log('Formatted campaign:', formattedCampaign);
             setCampaign(formattedCampaign);
         } catch (error) {
             console.error('Error fetching campaign details:', error);
@@ -168,8 +100,8 @@ const CampaignDetails = () => {
         if (!campaign) return;
 
         try {
-            await baserowService.updateCampaign(campaign.id, {
-                'Active': campaign.status === 'Inactive'
+            await updateCampaign(campaign.id, {
+                status: campaign.status === 'inactive' ? 'active' : 'inactive'
             });
             await fetchCampaignDetails();
         } catch (error) {
@@ -197,14 +129,9 @@ const CampaignDetails = () => {
         }
     };
 
-    const handleEditSubmit = async (campaignData, id) => {
+    const handleEditSubmit = async (campaignData) => {
         try {
-            // Preserve the campaign's current status
-            const updatedData = {
-                ...campaignData,
-                'Active': campaign.status === 'Active'
-            };
-            await baserowService.updateCampaign(id, updatedData);
+            await updateCampaign(campaign.id, campaignData);
             await fetchCampaignDetails();
             setIsModalOpen(false);
         } catch (error) {
@@ -264,18 +191,18 @@ const CampaignDetails = () => {
                     </Button>
                     <Button
                         variant="outlined"
-                        startIcon={campaign.status === 'Active' ? <ArchiveIcon /> : <UnarchiveIcon />}
+                        startIcon={campaign.status === 'active' ? <ArchiveIcon /> : <UnarchiveIcon />}
                         onClick={handleStatusToggle}
                         sx={{ borderColor: '#E9D8FD', color: '#6B46C1' }}
                     >
-                        {campaign.status === 'Active' ? 'Archive Campaign' : 'Reactivate Campaign'}
+                        {campaign.status === 'active' ? 'Archive Campaign' : 'Reactivate Campaign'}
                     </Button>
                     <Button
                         variant="contained"
-                        startIcon={campaign.status === 'Active' ? <StopIcon /> : <PlayArrowIcon />}
-                        color={campaign.status === 'Active' ? 'error' : 'success'}
+                        startIcon={campaign.status === 'active' ? <StopIcon /> : <PlayArrowIcon />}
+                        color={campaign.status === 'active' ? 'error' : 'success'}
                     >
-                        {campaign.status === 'Active' ? 'Stop Campaign' : 'Start Campaign'}
+                        {campaign.status === 'active' ? 'Stop Campaign' : 'Start Campaign'}
                     </Button>
                 </Box>
             </Box>
@@ -294,7 +221,7 @@ const CampaignDetails = () => {
                                 </Typography>
                                 <Chip
                                     label={campaign.status}
-                                    color={campaign.status === 'Active' ? 'success' : 'default'}
+                                    color={campaign.status === 'active' ? 'success' : 'default'}
                                     size="small"
                                     sx={{ mt: 1 }}
                                 />
@@ -383,7 +310,7 @@ const CampaignDetails = () => {
             </Paper>
 
             <CampaignModal
-                isOpen={isModalOpen}
+                open={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={handleEditSubmit}
                 lists={lists}
