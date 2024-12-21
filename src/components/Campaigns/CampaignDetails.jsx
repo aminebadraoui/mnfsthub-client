@@ -49,18 +49,19 @@ const CampaignDetails = () => {
             // Fetch campaign data
             const response = await baserowService.getCampaigns({
                 filters: {
-                    'UUID': uuid,
                     'Tenant ID': tenantId
                 }
             });
 
             console.log('Campaign response:', response);
 
-            if (response.results.length === 0) {
+            // Find the specific campaign by UUID
+            console.log('UUID:', uuid);
+            const campaignData = response.results.find(campaign => campaign.UUID === uuid);
+            if (!campaignData) {
                 throw new Error('Campaign not found');
             }
 
-            const campaignData = response.results[0];
             console.log('Campaign data:', campaignData);
 
             // Fetch list prospects count

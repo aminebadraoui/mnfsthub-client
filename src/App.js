@@ -61,7 +61,7 @@ const App = () => {
                 <Route path="outreach-portal/lists/*" element={<Lists />} />
                 <Route path="outreach-portal/lists/:listId" element={<ContactsTable />} />
                 <Route path="outreach-portal/campaigns/*" element={<Campaigns />} />
-                <Route path="outreach-portal/campaigns/:id" element={<CampaignDetails />} />
+                <Route path="outreach-portal/campaigns/campaign/:uuid" element={<CampaignDetails />} />
                 <Route path="marketing-portal" element={<div>Marketing Portal</div>} />
                 <Route path="sales-portal" element={<div>Sales Portal</div>} />
                 <Route path="cx-portal" element={<div>Customer Experience Portal</div>} />

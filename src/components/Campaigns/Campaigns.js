@@ -175,7 +175,7 @@ const Campaigns = () => {
     };
 
     const handleCampaignClick = (campaign) => {
-        navigate(`/outreach-portal/campaigns/${campaign.uuid}`);
+        navigate(`/outreach-portal/campaigns/campaign/${campaign.uuid}`);
     };
 
     const handleArchiveToggle = async () => {
