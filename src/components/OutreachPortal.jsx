@@ -15,10 +15,11 @@ import {
     Flex,
 } from '@chakra-ui/react';
 import { MdArrowBack } from 'react-icons/md';
-import { useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import ListsManager from './Lists/ListsManager';
 import CampaignsManager from './Campaigns/CampaignsManager';
 import ProspectResearch from './Research/ProspectResearch';
+import ContactsTable from './Lists/ContactsTable';
 
 const OutreachPortal = () => {
     const navigate = useNavigate();
@@ -54,52 +55,57 @@ const OutreachPortal = () => {
                 </Text>
             </VStack>
 
-            <Tabs colorScheme="brand" isLazy>
-                <TabList borderBottomWidth="1px" borderBottomColor="gray.200">
-                    <Tab
-                        fontSize="md"
-                        fontWeight="medium"
-                        _selected={{
-                            color: tabColor,
-                            borderBottomColor: tabColor,
-                        }}
-                    >
-                        Lists
-                    </Tab>
-                    <Tab
-                        fontSize="md"
-                        fontWeight="medium"
-                        _selected={{
-                            color: tabColor,
-                            borderBottomColor: tabColor,
-                        }}
-                    >
-                        Campaigns
-                    </Tab>
-                    <Tab
-                        fontSize="md"
-                        fontWeight="medium"
-                        _selected={{
-                            color: tabColor,
-                            borderBottomColor: tabColor,
-                        }}
-                    >
-                        Research
-                    </Tab>
-                </TabList>
+            <Routes>
+                <Route path="lists/:listId/contacts" element={<ContactsTable />} />
+                <Route path="*" element={
+                    <Tabs colorScheme="brand" isLazy>
+                        <TabList borderBottomWidth="1px" borderBottomColor="gray.200">
+                            <Tab
+                                fontSize="md"
+                                fontWeight="medium"
+                                _selected={{
+                                    color: tabColor,
+                                    borderBottomColor: tabColor,
+                                }}
+                            >
+                                Lists
+                            </Tab>
+                            <Tab
+                                fontSize="md"
+                                fontWeight="medium"
+                                _selected={{
+                                    color: tabColor,
+                                    borderBottomColor: tabColor,
+                                }}
+                            >
+                                Campaigns
+                            </Tab>
+                            <Tab
+                                fontSize="md"
+                                fontWeight="medium"
+                                _selected={{
+                                    color: tabColor,
+                                    borderBottomColor: tabColor,
+                                }}
+                            >
+                                Research
+                            </Tab>
+                        </TabList>
 
-                <TabPanels>
-                    <TabPanel px={0} py={6}>
-                        <ListsManager />
-                    </TabPanel>
-                    <TabPanel px={0} py={6}>
-                        <CampaignsManager />
-                    </TabPanel>
-                    <TabPanel px={0} py={6}>
-                        <ProspectResearch />
-                    </TabPanel>
-                </TabPanels>
-            </Tabs>
+                        <TabPanels>
+                            <TabPanel px={0} py={6}>
+                                <ListsManager />
+                            </TabPanel>
+                            <TabPanel px={0} py={6}>
+                                <CampaignsManager />
+                            </TabPanel>
+                            <TabPanel px={0} py={6}>
+                                <ProspectResearch />
+                            </TabPanel>
+                        </TabPanels>
+                    </Tabs>
+                } />
+            </Routes>
         </Container>
     );
 };

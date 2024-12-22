@@ -23,7 +23,24 @@ const useAuthStore = create((set) => ({
         try {
             set({ loading: true, error: null });
             const data = await signIn(email, password);
-            set({ user: data, loading: false });
+
+            // Store token and tenantId in localStorage
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('tenantId', data.id);
+
+            console.log('Login successful - Auth data:', {
+                token: data.token,
+                tenantId: data.id,
+                rawData: data
+            });
+
+            set({
+                user: {
+                    ...data,
+                    tenantId: data.id
+                },
+                loading: false
+            });
             return data;
         } catch (error) {
             set({
@@ -39,7 +56,18 @@ const useAuthStore = create((set) => ({
         try {
             set({ loading: true, error: null });
             const data = await signUp(userData);
-            set({ user: data, loading: false });
+
+            // Store token and tenantId in localStorage
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('tenantId', data.id);
+
+            set({
+                user: {
+                    ...data,
+                    tenantId: data.id
+                },
+                loading: false
+            });
             return data;
         } catch (error) {
             set({
@@ -52,6 +80,8 @@ const useAuthStore = create((set) => ({
 
     // Logout action
     logout: () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('tenantId');
         signOut();
         set({ user: null, error: null });
     },
