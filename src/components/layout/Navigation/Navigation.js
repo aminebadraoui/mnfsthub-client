@@ -10,7 +10,7 @@ import {
     useColorModeValue,
     useBreakpointValue,
 } from '@chakra-ui/react';
-import { MdDashboard, MdPerson, MdLogout } from 'react-icons/md';
+import { MdDashboard, MdPerson, MdLogout, MdTimeline } from 'react-icons/md';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../../stores/authStore';
 
@@ -33,7 +33,8 @@ const Navigation = () => {
         { text: "Marketing Portal", path: "/marketing-portal" },
         { text: "Sales Portal", path: "/sales-portal" },
         { text: "Customer Experience Portal", path: "/cx-portal" },
-        { text: "Knowledge Base", path: "/knowledge-base" }
+        { text: "Knowledge Base", path: "/knowledge-base" },
+        { text: "Workflow Tracker", icon: MdTimeline, path: "workflows" }
     ];
 
     const bottomMenuItems = [

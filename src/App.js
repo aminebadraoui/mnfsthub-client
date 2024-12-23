@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
-import { ChakraProvider, Box, Flex } from '@chakra-ui/react';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { ChakraProvider, Box, Flex, Spinner, Center } from '@chakra-ui/react';
 import theme from './theme';
 import SignIn from './components/Auth/SignIn';
 import SignUp from './components/Auth/SignUp';
@@ -10,6 +10,7 @@ import OutreachPortal from './components/OutreachPortal';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import useAuthStore from './stores/authStore';
 import Profile from './components/Profile/Profile';
+import WorkflowTracker from './components/Workflows/WorkflowTracker';
 
 const DRAWER_WIDTH = '240px';
 
@@ -37,30 +38,45 @@ const DashboardLayout = () => {
   );
 };
 
+const LoadingScreen = () => (
+  <Center h="100vh">
+    <Spinner size="xl" color="purple.500" thickness="4px" />
+  </Center>
+);
+
 function App() {
-  const { init } = useAuthStore();
+  const { init, loading } = useAuthStore();
 
   useEffect(() => {
     init();
   }, [init]);
 
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <ChakraProvider theme={theme}>
       <Router>
         <Routes>
+          {/* Public Routes */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
 
-          {/* Protected Routes */}
+          {/* Protected Routes with Layout */}
           <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/outreach-portal/*" element={<OutreachPortal />} />
-            <Route path="/marketing-portal" element={<Box>Marketing Portal (Coming Soon)</Box>} />
-            <Route path="/sales-portal" element={<Box>Sales Portal (Coming Soon)</Box>} />
-            <Route path="/cx-portal" element={<Box>Customer Experience Portal (Coming Soon)</Box>} />
-            <Route path="/knowledge-base" element={<Box>Knowledge Base (Coming Soon)</Box>} />
-            <Route path="/profile" element={<Profile />} />
+            <Route path="outreach-portal/*" element={<OutreachPortal />} />
+            <Route path="marketing-portal" element={<Box>Marketing Portal (Coming Soon)</Box>} />
+            <Route path="sales-portal" element={<Box>Sales Portal (Coming Soon)</Box>} />
+            <Route path="cx-portal" element={<Box>Customer Experience Portal (Coming Soon)</Box>} />
+            <Route path="knowledge-base" element={<Box>Knowledge Base (Coming Soon)</Box>} />
+            <Route path="workflows" element={<WorkflowTracker />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
+
+          {/* Catch all route */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </ChakraProvider>
